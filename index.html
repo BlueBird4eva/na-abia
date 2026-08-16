@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>NaAbia — Navigate Abia, Local Guide</title>
+<meta name="description" content="Offline local guide for all 17 LGAs of Abia State — villages, schools, hospitals, markets, NYSC & emergency contacts.">
+<meta name="theme-color" content="#173620">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NaAbia">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --green-900:#12281B;
+    --green-800:#173620;
+    --green-700:#1E4430;
+    --gold:#CDA43F;
+    --gold-light:#E8C874;
+    --laterite:#C1502E;
+    --cream:#DAD3C1;
+    --cream-2:#EEE9DC;
+    --paper:#FBF8F1;
+    --ink:#1C1B15;
+    --muted:rgba(28,27,21,.58);
+    --line:rgba(28,27,21,.13);
+    --radius:16px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;min-height:100vh;overscroll-behavior-y:contain;
+    padding-bottom:78px;
+  }
+  button{font-family:inherit;}
+  a{color:inherit;text-decoration:none;}
+  img.icon-img{width:100%;height:100%;display:block;object-fit:contain;}
+
+  /* ---------- Splash ---------- */
+  #splash{
+    position:fixed;inset:0;z-index:999;background:radial-gradient(120% 100% at 50% 30%, var(--green-700) 0%, var(--green-900) 70%, #0B1A11 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;
+    transition:opacity .5s ease, visibility .5s ease;
+  }
+  #splash.hide{opacity:0;visibility:hidden;pointer-events:none;}
+  #splash .ring{width:118px;height:118px;filter:drop-shadow(0 12px 26px rgba(0,0,0,.4));}
+  #splash h1{
+    font-family:'Lobster', 'Brush Script MT', 'Segoe Script', 'Bradley Hand', cursive;
+    font-weight:400;
+    font-size:2.6rem;
+    margin:18px 0 0;
+    letter-spacing:0;
+    background:linear-gradient(180deg,#6b6b6b 0%,#e8e8e8 22%,#3a3a3a 45%,#0a0a0a 55%,#3a3a3a 68%,#dcdcdc 85%,#4a4a4a 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    -webkit-text-stroke:0.5px rgba(0,0,0,.4);
+    filter:drop-shadow(0 3px 2px rgba(0,0,0,.55)) drop-shadow(0 0 14px rgba(255,255,255,.08));
+  }
+  #splash .tag{font-size:.68rem;letter-spacing:.14em;color:var(--gold-light);font-weight:700;text-transform:uppercase;margin-bottom:10px;}
+  #splash .subtag{
+    font-family:'Lobster', 'Brush Script MT', 'Segoe Script', 'Bradley Hand', cursive;
+    font-weight:400;
+    font-size:1.15rem;
+    margin:2px 0 12px;
+    background:linear-gradient(180deg,#7a7a7a 0%,#f0f0f0 25%,#2e2e2e 50%,#101010 60%,#4a4a4a 78%,#e2e2e2 92%,#555 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    -webkit-text-stroke:0.4px rgba(0,0,0,.35);
+    filter:drop-shadow(0 2px 1px rgba(0,0,0,.5));
+  }
+
+  /* ---------- Network status pill ---------- */
+  .netpill{font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 8px 3px 6px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;
+    margin-left:auto;white-space:nowrap;}
+  .netpill::before{content:"";width:6px;height:6px;border-radius:50%;display:block;}
+  .netpill.online{background:rgba(94,196,120,.16);color:#8fe0a8;}
+  .netpill.online::before{background:#5ec478;box-shadow:0 0 5px #5ec478;}
+  .netpill.offline{background:rgba(255,255,255,.08);color:rgba(255,255,255,.55);}
+  .netpill.offline::before{background:rgba(255,255,255,.4);}
+
+  /* ---------- Live map (online) ---------- */
+  #liveMap{width:100%;height:340px;border-radius:14px;overflow:hidden;background:var(--green-900);}
+  .maphint{font-size:.72rem;color:var(--muted);text-align:center;padding:8px 4px 2px;}
+
+  /* ---------- SOS / trusted contacts ---------- */
+  .sosbtn{display:block;width:100%;text-align:center;background:#C1502E;color:#fff;font-weight:800;
+    padding:14px;border-radius:12px;border:none;font-size:.95rem;cursor:pointer;margin-top:10px;
+    box-shadow:0 6px 16px rgba(193,80,46,.35);}
+  .sosbtn:active{transform:scale(.98);}
+  .contactrow{display:flex;gap:8px;align-items:center;background:var(--paper);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;margin-top:8px;}
+  .contactrow input{flex:1;border:none;background:transparent;font:inherit;padding:4px;min-width:0;}
+  .contactrow .rm{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:2px 6px;}
+  .addcontactbtn{background:none;border:1.5px dashed var(--line);color:var(--green-700);font-weight:700;
+    padding:9px;border-radius:10px;width:100%;margin-top:8px;cursor:pointer;font-size:.82rem;}
+
+  /* ---------- Welcome pack checklist ---------- */
+  .checkrow{display:flex;align-items:flex-start;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);}
+  .checkrow:last-child{border-bottom:none;}
+  .checkrow input[type=checkbox]{width:19px;height:19px;margin-top:1px;accent-color:var(--green-700);flex:none;}
+  .checkrow label{font-size:.85rem;line-height:1.4;}
+  .checkrow.done label{text-decoration:line-through;opacity:.5;}
+  .packprogress{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:10px 0 4px;}
+  .packprogress i{display:block;height:100%;background:var(--green-700);border-radius:4px;transition:width .3s;}
+  .packmeta{font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;}
+
+  /* ---------- Contribution stats / badges ---------- */
+  .badgerow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .badge{display:flex;align-items:center;gap:6px;background:var(--gold-light);color:#5a4008;
+    font-size:.72rem;font-weight:800;padding:6px 10px;border-radius:20px;opacity:.35;}
+  .badge.earned{opacity:1;}
+  .badge svg{width:13px;height:13px;}
+
+  /* ---------- Lite mode ---------- */
+  .toggleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;}
+  .switch{position:relative;width:42px;height:24px;flex:none;}
+  .switch input{opacity:0;width:100%;height:100%;position:absolute;margin:0;cursor:pointer;}
+  .switch .track{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.2s;}
+  .switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;
+    box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s;}
+  .switch input:checked + .track{background:var(--green-700);}
+  .switch input:checked + .track .knob{transform:translateX(18px);}
+
+  /* ---------- Pin-drop animation ---------- */
+  @keyframes pindrop{0%{transform:translateY(-14px) scale(.7);opacity:0;}60%{transform:translateY(2px) scale(1.05);opacity:1;}100%{transform:translateY(0) scale(1);}}
+  .mappin{animation:pindrop .38s cubic-bezier(.34,1.56,.64,1) backwards;}
+
+  /* ---------- Seasonal theming (subtle) ---------- */
+  body.season-harmattan{--gold:#E0A83E;--gold-light:#F0CE83;}
+  body.season-rain{--green-700:#1B4A32;--gold:#C9A23E;}
+  #splash p{margin:0;opacity:.75;font-size:.82rem;text-align:center;padding:0 30px;}
+  #splash .bar{width:130px;height:3px;background:rgba(255,255,255,.18);border-radius:3px;margin-top:24px;overflow:hidden;}
+  #splash .bar i{display:block;height:100%;width:38%;background:var(--gold);border-radius:3px;animation:load 1.1s ease-in-out infinite;}
+  @keyframes load{0%{transform:translateX(-120%)}100%{transform:translateX(380%)}}
+
+  /* ---------- Hero ---------- */
+  header.hero{background:linear-gradient(165deg, var(--green-800), var(--green-900));color:#fff;padding:14px 16px 22px;}
+  .heroTop{display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:11px;}
+  .brand .icon-badge{width:44px;height:44px;border-radius:12px;background:var(--green-900);border:1px solid rgba(255,255,255,.08);padding:6px;flex:none;}
+  .brand .bname{font-weight:800;font-size:1.05rem;line-height:1.15;}
+  .brand .btag{font-size:.62rem;letter-spacing:.13em;color:var(--gold-light);font-weight:700;text-transform:uppercase;}
+  .iconbtn{width:38px;height:38px;border-radius:999px;border:1.4px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;background:none;color:#fff;cursor:pointer;flex:none;}
+  .iconbtn svg{width:17px;height:17px;}
+  .iconbtn.filled{background:rgba(255,255,255,.14);}
+  .heroRow{display:flex;gap:8px;}
+
+  .eyebrow{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--gold-light);margin:20px 0 6px;}
+  .headline{font-size:1.7rem;font-weight:800;line-height:1.15;margin:0 0 8px;letter-spacing:-0.01em;}
+  .subtext{font-size:.88rem;opacity:.78;line-height:1.5;margin:0 0 16px;max-width:34ch;}
+
+  .searchwrap{position:relative;}
+  .searchwrap input{
+    width:100%;padding:13px 16px 13px 42px;border-radius:999px;border:none;
+    background:var(--cream-2);font-size:.92rem;color:var(--ink);
+  }
+  .searchwrap input::placeholder{color:var(--muted);}
+  .searchwrap svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:17px;height:17px;opacity:.55;}
+
+  .sospill{
+    margin-top:10px;display:inline-flex;align-items:center;gap:6px;background:rgba(193,80,46,.22);
+    border:1px solid rgba(193,80,46,.55);color:#F3C7B4;padding:7px 13px;border-radius:999px;font-size:.76rem;font-weight:700;
+  }
+
+  /* ---------- Sticky filter bar ---------- */
+  .filterbar{
+    position:sticky;top:0;z-index:40;background:var(--cream);padding:16px 16px 0;
+    box-shadow:0 2px 0 var(--line);
+  }
+  .filterhead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px;}
+  .filterhead .eyebrow2{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--laterite);margin-bottom:4px;}
+  .filterhead h2{font-size:1.28rem;font-weight:800;margin:0;letter-spacing:-0.01em;}
+  .togglebtn{
+    flex:none;display:flex;align-items:center;gap:6px;background:var(--green-800);color:#fff;border:none;
+    padding:9px 14px;border-radius:999px;font-size:.8rem;font-weight:700;cursor:pointer;
+  }
+  .togglebtn svg{width:14px;height:14px;}
+
+  .chiprow{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .chiprow::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:none;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--paper);
+    font-size:.79rem;font-weight:700;color:var(--ink);opacity:.68;cursor:pointer;white-space:nowrap;
+  }
+  .chip.active{background:var(--green-800);border-color:var(--green-800);color:#fff;opacity:1;}
+
+  .lgatabs{display:flex;align-items:center;gap:16px;padding:9px 0 12px;font-size:.83rem;color:var(--muted);}
+  .lgatabs b.showing{font-weight:600;opacity:.7;}
+  .lgatabs span{cursor:pointer;font-weight:600;padding:2px 0;}
+  .lgatabs span.active{color:var(--green-800);font-weight:800;border-bottom:2px solid var(--green-800);}
+
+  /* ---------- List ---------- */
+  main{padding:14px 16px 10px;max-width:640px;margin:0 auto;}
+  .listhead{display:flex;justify-content:space-between;align-items:baseline;margin:4px 2px 12px;}
+  .listhead h3{font-size:1rem;font-weight:800;margin:0;}
+  .listhead span{font-size:.76rem;color:var(--muted);font-weight:600;}
+
+  .place-card{
+    display:flex;gap:12px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);
+    border-radius:var(--radius);padding:12px;margin-bottom:10px;cursor:pointer;
+  }
+  .place-card .thumb{
+    width:52px;height:52px;border-radius:12px;background:var(--cream-2);display:flex;align-items:center;justify-content:center;
+    flex:none;
+  }
+  .place-card .thumb svg{width:24px;height:24px;color:var(--green-800);}
+  .place-card .body{flex:1;min-width:0;}
+  .place-card .titlerow{display:flex;align-items:center;gap:5px;}
+  .place-card h4{font-size:.95rem;font-weight:800;margin:0;}
+  .badge-check{width:15px;height:15px;flex:none;color:var(--green-800);}
+  .place-card .meta{font-size:.75rem;color:var(--muted);margin-top:1px;font-weight:600;}
+  .place-card .desc{font-size:.8rem;color:var(--muted);margin-top:5px;line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .heartbtn{background:none;border:none;flex:none;padding:4px;cursor:pointer;color:var(--muted);}
+  .heartbtn svg{width:19px;height:19px;}
+  .heartbtn.on{color:var(--laterite);}
+  .heartbtn.on svg{fill:var(--laterite);}
+
+  .empty{text-align:center;padding:44px 20px;color:var(--muted);font-size:.88rem;}
+
+  /* ---------- Schematic map ---------- */
+  .mapwrap{position:relative;background:var(--green-900);border-radius:var(--radius);padding:14px;color:#fff;overflow:hidden;margin-bottom:14px;}
+  .mapwrap .note{font-size:.68rem;color:var(--gold-light);opacity:.85;margin-bottom:10px;font-weight:700;letter-spacing:.03em;}
+  .mapgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .mappin{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 6px;
+    text-align:center;font-size:.62rem;font-weight:700;cursor:pointer;line-height:1.3;
+  }
+  .mappin svg{width:16px;height:16px;margin-bottom:3px;color:var(--gold-light);}
+  .maplabel{font-size:.72rem;font-weight:800;opacity:.8;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.06em;}
+
+  /* ---------- Bottom sheet ---------- */
+  .sheet-backdrop{
+    position:fixed;inset:0;background:rgba(18,40,27,.45);z-index:80;opacity:0;visibility:hidden;
+    transition:opacity .25s ease, visibility .25s ease;
+  }
+  .sheet-backdrop.show{opacity:1;visibility:visible;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-radius:22px 22px 0 0;z-index:90;
+    padding:10px 18px calc(20px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto;
+    transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:88vh;overflow-y:auto;
+  }
+  .sheet.show{transform:translateY(0);}
+  .sheet .handle{width:38px;height:4px;background:var(--line);border-radius:3px;margin:4px auto 14px;}
+  .sheet-top{display:flex;align-items:flex-start;gap:12px;}
+  .sheet-top .thumb{width:52px;height:52px;border-radius:13px;background:var(--green-900);display:flex;align-items:center;justify-content:center;flex:none;}
+  .sheet-top .thumb svg{width:24px;height:24px;color:var(--gold-light);}
+  .sheet-top .titles{flex:1;}
+  .sheet-top h3{font-size:1.15rem;font-weight:800;margin:0 0 3px;line-height:1.25;display:flex;align-items:center;gap:6px;}
+  .sheet-top .badge-check{color:var(--green-800);}
+  .sheet-top .meta{font-size:.8rem;color:var(--muted);font-weight:600;}
+  .pronounceRow{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap;}
+  .pronounceBtn{
+    display:flex;align-items:center;gap:5px;background:var(--green-900);color:#fff;border:none;
+    padding:5px 10px;border-radius:999px;font-size:.7rem;font-weight:700;cursor:pointer;flex:none;
+  }
+  .pronounceBtn svg{width:12px;height:12px;color:var(--gold-light);}
+  .syllableGuide{font-size:.74rem;color:var(--muted);font-style:italic;}
+  .closebtn{width:32px;height:32px;border-radius:999px;background:var(--cream-2);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;}
+  .closebtn svg{width:15px;height:15px;}
+
+  .sheet p.desc{font-size:.87rem;line-height:1.55;margin:14px 0 0;color:var(--ink);opacity:.88;}
+  .tip{
+    display:flex;gap:9px;background:var(--cream-2);border-radius:12px;padding:11px 12px;margin-top:12px;font-size:.79rem;line-height:1.5;
+  }
+  .tip svg{width:15px;height:15px;flex:none;margin-top:2px;color:var(--green-800);}
+  .tip.unverified{background:#FBF0DE;}
+
+  .datarow{display:flex;margin-top:16px;padding-top:0;}
+  .datarow > div{flex:1;}
+  .datarow label{display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:3px;}
+  .datarow .val{font-size:.87rem;font-weight:700;}
+  hr.div{border:none;border-top:1px solid var(--line);margin:16px 0;}
+
+  .actionrow{display:flex;gap:9px;}
+  .actionrow button, .actionrow a{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:12px;
+    border:1px solid var(--line);background:var(--paper);font-size:.85rem;font-weight:700;cursor:pointer;color:var(--ink);
+  }
+  .actionrow svg{width:16px;height:16px;}
+  .actionrow button.on{color:var(--laterite);border-color:rgba(193,80,46,.4);background:#FBEDE7;}
+  .directionsbtn{
+    margin-top:9px;width:100%;background:var(--green-900);color:#fff;border:none;padding:14px;border-radius:12px;
+    display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:.9rem;cursor:pointer;
+  }
+  .directionsbtn svg{width:17px;height:17px;color:var(--gold-light);}
+  .listedphone{text-align:center;font-size:.76rem;color:var(--muted);margin-top:10px;}
+  .nonum{text-align:center;font-size:.76rem;color:var(--muted);margin-top:10px;font-style:italic;}
+
+  /* ---------- Guide / Add / Saved views ---------- */
+  .view{display:none;}
+  .view.active{display:block;}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+  .panel h2{margin:0 0 8px;font-size:1.08rem;font-weight:800;}
+  .panel p{font-size:.87rem;line-height:1.55;margin:0 0 10px;color:var(--muted);}
+  .panel ol,.panel ul{margin:0 0 10px;padding-left:20px;font-size:.87rem;line-height:1.65;color:var(--ink);opacity:.9;}
+  .panel li{margin-bottom:7px;}
+  .greenpanel{background:var(--green-900);color:#fff;border:none;}
+  .greenpanel p{color:rgba(255,255,255,.8);}
+  .greenpanel ol,.greenpanel ul{color:rgba(255,255,255,.85);}
+  .greenpanel .callbtn{display:inline-flex;align-items:center;gap:8px;background:var(--gold);color:var(--green-900);padding:11px 18px;border-radius:10px;font-weight:800;font-size:.88rem;margin-top:2px;}
+
+  .phraseCard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+  .phraseCard .eng{font-size:.78rem;color:var(--muted);font-weight:700;margin-bottom:3px;}
+  .phraseCard .igbo{font-size:.98rem;font-weight:800;color:var(--green-800);}
+
+  form.addform label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 6px;}
+  form.addform label:first-child{margin-top:0;}
+  form.addform input,form.addform select,form.addform textarea{
+    width:100%;padding:11px 13px;border-radius:11px;border:1px solid var(--line);font-size:.9rem;font-family:inherit;background:var(--cream-2);color:var(--ink);
+  }
+  form.addform textarea{resize:vertical;min-height:64px;}
+  form.addform .row2{display:flex;gap:10px;}
+  form.addform .row2 > div{flex:1;}
+  .submitbtn{margin-top:18px;width:100%;background:var(--green-900);color:#fff;border:none;padding:14px;border-radius:12px;font-weight:800;font-size:.92rem;cursor:pointer;}
+  .noteflag{background:#FBF0DE;border:1px solid #EAD2A0;border-radius:11px;padding:11px 13px;font-size:.78rem;line-height:1.5;margin-top:14px;color:#6b4a1a;}
+
+  .statrow{display:flex;gap:8px;margin-bottom:14px;}
+  .statbox{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;}
+  .statbox b{display:block;font-size:1.2rem;color:var(--laterite);}
+  .statbox span{font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+
+  .iconbox{display:flex;gap:12px;align-items:center;background:var(--cream-2);border-radius:12px;padding:12px;margin-top:10px;}
+  .iconbox .icon-badge{width:56px;height:56px;border-radius:14px;background:var(--green-900);padding:8px;flex:none;}
+  .iconbox .txt{flex:1;font-size:.8rem;line-height:1.4;color:var(--muted);}
+  .dlbtn{background:var(--green-900);color:#fff;border:none;padding:9px 14px;border-radius:9px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+  /* ---------- Bottom nav ---------- */
+  nav.tabbar{
+    position:fixed;bottom:0;left:0;right:0;z-index:60;background:var(--paper);border-top:1px solid var(--line);
+    display:flex;padding:8px 4px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px rgba(28,27,21,.06);
+  }
+  nav.tabbar button{
+    flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;
+    color:var(--muted);cursor:pointer;
+  }
+  nav.tabbar button.active{color:var(--green-800);}
+  nav.tabbar svg{width:20px;height:20px;}
+  nav.tabbar span{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em;}
+
+  .toast{
+    position:fixed;bottom:84px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:10px 18px;border-radius:999px;font-size:.82rem;font-weight:700;z-index:200;
+    opacity:0;transition:opacity .25s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  /* ================= Cultural life strip (animated vignettes) ================= */
+  .lifestrip{
+    position:relative;height:118px;overflow:hidden;background:linear-gradient(180deg,var(--green-800),var(--green-900));
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .lifestrip .road{position:absolute;left:0;right:0;bottom:14px;height:2px;background:rgba(232,200,116,.18);}
+  .vignette{position:absolute;bottom:8px;opacity:0;pointer-events:none;transition:opacity .6s ease;}
+  .vignette.show{opacity:1;pointer-events:auto;}
+  .vignette svg{display:block;height:96px;width:auto;overflow:visible;}
+
+  /* cyclist travels left->right across the strip while shown */
+  #vig-cyclist{left:-140px;}
+  #vig-cyclist.show{animation:rideAcross 6.2s linear forwards;}
+  @keyframes rideAcross{ from{left:-140px;} to{left:104%;} }
+  .wheel{transform-origin:center;animation:spin 0.7s linear infinite;}
+  .pedalL{transform-origin:73px 62px;animation:pedal 0.7s linear infinite;}
+  .pedalR{transform-origin:73px 62px;animation:pedal 0.7s linear infinite reverse;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes pedal{to{transform:rotate(360deg);}}
+
+  /* women walk right->left, opposite corner */
+  #vig-women{right:-160px;}
+  #vig-women.show{animation:walkAcross 6.4s linear forwards;}
+  @keyframes walkAcross{ from{right:-160px;} to{right:104%;} }
+  .stepL{transform-origin:top center;animation:step 0.9s ease-in-out infinite;}
+  .stepR{transform-origin:top center;animation:step 0.9s ease-in-out infinite .45s;}
+  @keyframes step{0%,100%{transform:rotate(6deg);}50%{transform:rotate(-6deg);}}
+  .potwobble{transform-origin:center;animation:wobble 1.8s ease-in-out infinite;}
+  @keyframes wobble{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
+  .bob{animation:bob 0.9s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+
+  /* bead trader sits in a corner, idle wave + glint */
+  #vig-trader{left:14px;}
+  .waveArm{transform-origin:120px 55px;animation:wave 1.6s ease-in-out infinite;}
+  @keyframes wave{0%,100%{transform:rotate(0deg);}50%{transform:rotate(-22deg);}}
+  .glint{animation:glint 2.4s ease-in-out infinite;}
+  .glint2{animation:glint 2.4s ease-in-out infinite .8s;}
+  .glint3{animation:glint 2.4s ease-in-out infinite 1.6s;}
+  @keyframes glint{0%,100%{opacity:0;}50%{opacity:1;}}
+
+  @media (prefers-reduced-motion:reduce){
+    .vignette, .wheel, .pedalL, .pedalR, .stepL, .stepR, .potwobble, .bob, .waveArm, .glint, .glint2, .glint3{animation:none!important;}
+  }
+
+  /* small corner accents reused on other tabs */
+  .corner-accent{position:absolute;opacity:.5;pointer-events:none;}
+  .corner-accent svg{display:block;}
+  .hero{position:relative;overflow:hidden;}
+
+  /* ---------- Keyboard focus visibility ---------- */
+  .chip:focus-visible, .lgatabs span:focus-visible, .togglebtn:focus-visible,
+  .iconbtn:focus-visible, .heartbtn:focus-visible, nav.tabbar button:focus-visible,
+  .pronounceBtn:focus-visible, .star:focus-visible{
+    outline:2.5px solid var(--gold); outline-offset:2px;
+  }
+  .place-card:focus-visible{ outline:2.5px solid var(--gold); outline-offset:1px; }
+
+  /* ---------- Star rating widget ---------- */
+  .starrow{display:flex;gap:4px;margin-top:12px;}
+  .star{background:none;border:none;cursor:pointer;padding:2px;color:var(--line);}
+  .star svg{width:22px;height:22px;}
+  .star.on{color:var(--gold);}
+  .ratingnote{width:100%;margin-top:8px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);
+    font-size:.82rem;font-family:inherit;background:var(--cream-2);color:var(--ink);resize:vertical;min-height:44px;}
+  .place-card .mystars{font-size:.72rem;color:var(--gold);margin-top:2px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <svg class="ring" id="splashIconMount" viewBox="0 0 100 100"></svg>
+  <h1>Naabia</h1>
+  <div class="subtag">Navigate Abia</div>
+  <p>All 17 LGAs, Abia State</p>
+  <div class="bar"><i></i></div>
+</div>
+
+<!-- EXPLORE (home) -->
+<div class="view active" id="view-explore">
+  <header class="hero">
+    <div class="heroTop">
+      <div class="brand">
+        <div class="icon-badge" id="heroIconMount"></div>
+        <div>
+          <div class="bname">NaAbia</div>
+          <div class="btag">Pro · Local Guide</div>
+        </div>
+        <span id="netStatus" class="netpill" role="status" aria-live="polite"></span>
+      </div>
+      <div class="heroRow">
+        <button class="iconbtn" onclick="goTab('saved')" aria-label="Saved places">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="eyebrow">All 17 LGAs, Abia State</div>
+    <div class="headline">Know where to go.</div>
+    <p class="subtext">Na m abịa — "I am coming." Places, services and local landmarks across Abia State — verified where possible, built by the community where not.</p>
+
+    <div class="searchwrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="searchbox" placeholder="Search places, areas, services…" aria-label="Search places, areas, or services">
+    </div>
+    <div class="sospill" onclick="goTab('guide');scrollToLost();">⚠ Lost or need help now? Tap here</div>
+  </header>
+
+  <div class="lifestrip" aria-hidden="true">
+    <div class="road"></div>
+
+    <!-- Vignette 1: cyclist with palm-wine jar -->
+    <div class="vignette" id="vig-cyclist">
+      <svg viewBox="0 0 150 100">
+        <ellipse cx="75" cy="90" rx="60" ry="4" fill="#0B1A11" opacity=".35"/>
+        <g class="wheel"><circle cx="30" cy="62" r="16" fill="none" stroke="#E8C874" stroke-width="2.4"/><line x1="30" y1="46" x2="30" y2="78" stroke="#E8C874" stroke-width="1.4"/><line x1="14" y1="62" x2="46" y2="62" stroke="#E8C874" stroke-width="1.4"/></g>
+        <g class="wheel"><circle cx="88" cy="62" r="16" fill="none" stroke="#E8C874" stroke-width="2.4"/><line x1="88" y1="46" x2="88" y2="78" stroke="#E8C874" stroke-width="1.4"/><line x1="72" y1="62" x2="104" y2="62" stroke="#E8C874" stroke-width="1.4"/></g>
+        <path d="M30 62 L58 62 L73 30 L48 30 Z M58 62 L88 62 M73 30 L88 62" fill="none" stroke="#CDA43F" stroke-width="3" stroke-linejoin="round"/>
+        <!-- palm wine jar strapped to rear rack -->
+        <path d="M92 40 q10 -4 16 4 q4 8 -2 14 q-8 6 -16 -2 q-4 -8 2 -16 Z" fill="#8A5A2B" stroke="#5C3A1A" stroke-width="1"/>
+        <line x1="90" y1="46" x2="102" y2="58" stroke="#5C3A1A" stroke-width="1.6"/>
+        <line x1="92" y1="58" x2="104" y2="46" stroke="#5C3A1A" stroke-width="1.6"/>
+        <!-- rider -->
+        <circle cx="48" cy="18" r="7" fill="#8B5A2B"/>
+        <path d="M48 25 L44 44 L60 62" fill="none" stroke="#C1502E" stroke-width="6" stroke-linecap="round"/>
+        <path class="pedalL" d="M44 44 L36 54" stroke="#173620" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path class="pedalR" d="M44 44 L52 54" stroke="#173620" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <path d="M44 44 L30 30" stroke="#C1502E" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Vignette 2: women returning from the stream -->
+    <div class="vignette" id="vig-women">
+      <svg viewBox="0 0 190 100">
+        <g class="bob" transform="translate(0,0)">
+          <ellipse cx="30" cy="8" rx="10" ry="7" class="potwobble" fill="#8A5A2B"/>
+          <circle cx="30" cy="26" r="7" fill="#8B5A2B"/>
+          <path d="M20 34 Q30 30 40 34 L38 70 Q30 76 22 70 Z" fill="#CDA43F"/>
+          <path d="M23 40 h14 M23 48 h14 M23 56 h14" stroke="#8A5A2B" stroke-width="1.4" opacity=".6"/>
+          <path class="stepL" d="M25 70 L20 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+          <path class="stepR" d="M35 70 L40 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+        </g>
+        <g class="bob" transform="translate(52,6)">
+          <ellipse cx="30" cy="8" rx="10" ry="7" class="potwobble" fill="#A5672F"/>
+          <circle cx="30" cy="26" r="7" fill="#8B5A2B"/>
+          <path d="M20 34 Q30 30 40 34 L38 70 Q30 76 22 70 Z" fill="#C1502E"/>
+          <path d="M23 40 h14 M23 48 h14 M23 56 h14" stroke="#8A5A2B" stroke-width="1.4" opacity=".55"/>
+          <path class="stepR" d="M25 70 L20 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+          <path class="stepL" d="M35 70 L40 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+        </g>
+        <g class="bob" transform="translate(6,10)">
+          <ellipse cx="115" cy="8" rx="10" ry="7" class="potwobble" fill="#8A5A2B"/>
+          <circle cx="115" cy="26" r="7" fill="#8B5A2B"/>
+          <path d="M105 34 Q115 30 125 34 L123 70 Q115 76 107 70 Z" fill="#1E4430"/>
+          <path d="M108 40 h14 M108 48 h14 M108 56 h14" stroke="#E8C874" stroke-width="1.2" opacity=".5"/>
+          <path class="stepL" d="M110 70 L105 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+          <path class="stepR" d="M120 70 L125 88" stroke="#173620" stroke-width="4.5" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Vignette 3: bead trader calling buyers -->
+    <div class="vignette" id="vig-trader">
+      <svg viewBox="0 0 150 100">
+        <rect x="10" y="76" width="70" height="6" rx="2" fill="#8A5A2B"/>
+        <circle class="glint" cx="24" cy="74" r="2" fill="#fff"/>
+        <circle class="glint2" cx="40" cy="72" r="2" fill="#fff"/>
+        <circle class="glint3" cx="56" cy="74" r="2" fill="#fff"/>
+        <path d="M20 76 q0 -14 8 -14 q8 0 8 14" fill="none" stroke="#C1502E" stroke-width="3"/>
+        <path d="M36 76 q0 -18 8 -18 q8 0 8 18" fill="none" stroke="#CDA43F" stroke-width="3"/>
+        <path d="M52 76 q0 -12 8 -12 q8 0 8 12" fill="none" stroke="#1E4430" stroke-width="3"/>
+        <circle cx="112" cy="30" r="8" fill="#8B5A2B"/>
+        <path d="M112 38 L108 66 Q100 74 96 78" fill="none" stroke="#173620" stroke-width="7" stroke-linecap="round"/>
+        <path class="waveArm" d="M112 44 L128 30" stroke="#C1502E" stroke-width="6" stroke-linecap="round"/>
+        <path d="M112 44 L100 58" stroke="#173620" stroke-width="6" stroke-linecap="round"/>
+        <path d="M96 78 L112 78 L120 92 L88 92 Z" fill="#1E4430"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="filterbar">
+    <div class="filterhead">
+      <div>
+        <div class="eyebrow2">Explore your way</div>
+        <h2>What are you looking for?</h2>
+      </div>
+      <button class="togglebtn" id="viewToggleBtn" onclick="toggleMapView()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+        <span id="viewToggleLabel">Map</span>
+      </button>
+    </div>
+    <div class="chiprow" id="catchips"></div>
+    <div class="lgatabs">
+      <b class="showing">Showing</b>
+      <select id="lgaSelect" aria-label="Filter by LGA" style="font:inherit;font-weight:700;color:var(--green-800);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:4px 8px;">
+        <option value="all">All 17 LGAs</option>
+      </select>
+    </div>
+    <div style="padding-bottom:10px;">
+      <button id="verifiedToggle" class="chip" style="opacity:1;display:inline-flex;align-items:center;gap:5px;" onclick="toggleVerifiedOnly()" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.4-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4Z"/></svg>
+        Verified only
+      </button>
+    </div>
+  </div>
+
+  <main>
+    <div id="mapview" style="display:none;"></div>
+    <div id="listview">
+      <div class="listhead"><h3 id="listTitle">Around Abia State</h3><span id="listCount">0 listed</span></div>
+      <div id="results"></div>
+    </div>
+  </main>
+</div>
+
+<!-- SAVED -->
+<div class="view" id="view-saved">
+  <header class="hero" style="padding-bottom:16px;">
+    <div class="heroTop">
+      <div class="brand">
+        <div class="icon-badge" id="heroIconMount2"></div>
+        <div><div class="bname">Saved places</div><div class="btag">Your list</div></div>
+      </div>
+      <button class="iconbtn" onclick="goTab('explore')" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+    </div>
+    <div class="corner-accent" style="right:6px;bottom:-6px;">
+      <svg viewBox="0 0 60 60" width="58" height="58">
+        <ellipse cx="12" cy="4" rx="6" ry="4.5" fill="#8A5A2B" class="potwobble"/>
+        <circle cx="12" cy="14" r="4.2" fill="#8B5A2B"/>
+        <path d="M6 19 Q12 16 18 19 L17 40 Q12 44 7 40 Z" fill="#E8C874" opacity=".9"/>
+        <path class="stepL" d="M9 40 L6 52" stroke="#E8C874" stroke-width="2.6" stroke-linecap="round" opacity=".8"/>
+        <path class="stepR" d="M15 40 L18 52" stroke="#E8C874" stroke-width="2.6" stroke-linecap="round" opacity=".8"/>
+      </svg>
+    </div>
+  </header>
+  <main>
+    <div id="savedResults"></div>
+  </main>
+</div>
+
+<!-- ADD -->
+<div class="view" id="view-add">
+  <header class="hero" style="padding-bottom:16px;">
+    <div class="heroTop">
+      <div class="brand">
+        <div class="icon-badge" id="heroIconMount3"></div>
+        <div><div class="bname">Add a place</div><div class="btag">Grow the guide</div></div>
+      </div>
+    </div>
+    <div class="corner-accent" style="right:2px;bottom:-10px;">
+      <svg viewBox="0 0 90 60" width="86" height="58">
+        <g class="wheel" style="transform-origin:20px 40px;"><circle cx="20" cy="40" r="10" fill="none" stroke="#E8C874" stroke-width="1.8"/></g>
+        <g class="wheel" style="transform-origin:56px 40px;"><circle cx="56" cy="40" r="10" fill="none" stroke="#E8C874" stroke-width="1.8"/></g>
+        <path d="M20 40 L37 40 L47 20 L30 20 Z M37 40 L56 40 M47 20 L56 40" fill="none" stroke="#CDA43F" stroke-width="2" stroke-linejoin="round" opacity=".85"/>
+        <path d="M60 26 q7 -3 10 3 q3 5 -1 9 q-5 4 -10 -1 q-3 -5 1 -11 Z" fill="#8A5A2B" opacity=".85"/>
+      </svg>
+    </div>
+  </header>
+  <main>
+    <div class="panel">
+      <p>Know a checkpoint, school, clinic, market or a working phone number that isn't listed? Add it — every future traveller and corps member who opens this app sees it.</p>
+      <form class="addform" id="addform">
+        <label>Category</label>
+        <select id="f-category" required>
+          <option value="">Select…</option>
+          <option value="village">Village / Town</option>
+          <option value="school">School</option>
+          <option value="health">Hospital / Clinic</option>
+          <option value="market">Market</option>
+          <option value="bank">Bank / ATM</option>
+          <option value="ppa">PPA (Place of Primary Assignment)</option>
+          <option value="secretariat">Secretariat / Council office</option>
+          <option value="road">Road / Junction</option>
+          <option value="checkpoint">Help checkpoint (self-help / security)</option>
+          <option value="nysc">NYSC</option>
+          <option value="emergency">Emergency contact</option>
+        </select>
+        <div class="row2">
+          <div><label>Name</label><input id="f-name" required placeholder="e.g. Nsulu Central Market"></div>
+          <div><label>LGA</label>
+            <select id="f-lga" required></select>
+          </div>
+        </div>
+        <label>Nearest town / village (Area)</label>
+        <input id="f-town" placeholder="e.g. Nsulu, Omoba, Mbawsi…">
+        <label>Description</label>
+        <textarea id="f-desc" placeholder="What is this place, briefly?"></textarea>
+        <label>Local tip / how to find it (optional)</label>
+        <textarea id="f-tip" placeholder="e.g. Sits off the main road, nearest landmark is…"></textarea>
+        <label>Phone number (optional)</label>
+        <input id="f-phone" type="tel" placeholder="080…">
+        <button class="submitbtn" type="submit">Save to the guide</button>
+        <div class="noteflag">Saved on this device, so it'll be here for you next time. It won't automatically appear on someone else's phone unless you share this file with them (see the Concierge tab) or a shared backend is added later. Please only add places and numbers you've personally verified — this app clearly marks your entry as "Community" rather than "Verified".</div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- CONCIERGE -->
+<div class="view" id="view-concierge">
+  <header class="hero" style="padding-bottom:16px;">
+    <div class="heroTop">
+      <div class="brand">
+        <div class="icon-badge" id="heroIconMount6"></div>
+        <div><div class="bname">Corper Concierge</div><div class="btag">Ask me anything</div></div>
+      </div>
+    </div>
+    <div class="corner-accent" style="right:10px;bottom:-8px;">
+      <svg viewBox="0 0 60 50" width="56" height="46">
+        <circle class="glint" cx="14" cy="14" r="1.6" fill="#fff"/><circle class="glint2" cx="24" cy="10" r="1.6" fill="#fff"/><circle class="glint3" cx="34" cy="14" r="1.6" fill="#fff"/>
+        <path d="M10 16 q0 -6 4 -6 q4 0 4 6" fill="none" stroke="#CDA43F" stroke-width="1.6"/>
+        <path d="M20 16 q0 -8 4 -4 q4 4 4 4" fill="none" stroke="#C1502E" stroke-width="1.6"/>
+      </svg>
+    </div>
+  </header>
+  <main>
+    <div class="searchwrap" style="margin-bottom:14px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="conciergeInput" placeholder="Type your question — e.g. 'nearest hospital'" style="background:var(--paper);border:1px solid var(--line);">
+    </div>
+    <div class="chiprow" id="conciergeChips" style="flex-wrap:wrap;overflow:visible;padding-bottom:2px;"></div>
+    <div id="conciergeAnswerWrap"></div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h2>Share this guide</h2>
+      <p>Know another corper or resident heading to Abia State? Send them the file directly — no data needed once they have it.</p>
+      <button class="submitbtn" style="margin-top:4px;" onclick="shareApp()">📤 Share with another corper</button>
+    </div>
+    <div class="noteflag" style="margin-top:2px;">Answers marked <b>Community</b> come from app users, not official sources — confirm anything safety-critical (fares, phone numbers) locally before relying on it.</div>
+  </main>
+</div>
+
+<!-- GUIDE -->
+<div class="view" id="view-guide">
+  <header class="hero" style="padding-bottom:16px;">
+    <div class="heroTop">
+      <div class="brand">
+        <div class="icon-badge" id="heroIconMount4"></div>
+        <div><div class="bname">Guide</div><div class="btag">Lost mode &amp; how-to</div></div>
+      </div>
+    </div>
+    <div class="corner-accent" style="right:10px;bottom:-4px;">
+      <svg viewBox="0 0 60 50" width="58" height="48">
+        <rect x="4" y="34" width="30" height="3" rx="1.5" fill="#8A5A2B"/>
+        <circle class="glint" cx="12" cy="32" r="1.6" fill="#fff"/>
+        <circle class="glint2" cx="20" cy="30" r="1.6" fill="#fff"/>
+        <circle class="glint3" cx="28" cy="32" r="1.6" fill="#fff"/>
+        <path d="M9 34 q0 -6 3.5 -6 q3.5 0 3.5 6" fill="none" stroke="#C1502E" stroke-width="1.6"/>
+        <path d="M17 34 q0 -8 3.5 -8 q3.5 0 3.5 8" fill="none" stroke="#CDA43F" stroke-width="1.6"/>
+        <path d="M25 34 q0 -5 3.5 -5 q3.5 0 3.5 5" fill="none" stroke="#1E4430" stroke-width="1.6"/>
+        <circle cx="48" cy="10" r="4" fill="#8B5A2B"/>
+        <path class="waveArm" d="M48 14 L56 6" stroke="#C1502E" stroke-width="2.6" stroke-linecap="round" style="transform-origin:48px 14px;"/>
+        <path d="M48 14 L44 26" stroke="#173620" stroke-width="2.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </header>
+  <main>
+    <div class="statrow">
+      <div class="statbox"><b id="stat-total">–</b><span>Places listed</span></div>
+      <div class="statbox"><b id="stat-verified">–</b><span>Verified</span></div>
+      <div class="statbox"><b id="stat-community">–</b><span>Community</span></div>
+    </div>
+
+    <div class="panel greenpanel" id="lostPanel">
+      <h2>If you're lost right now</h2>
+      <p>Stay where you are if it's a busy road, market, school gate or checkpoint — don't push further down an unfamiliar path, especially after dark.</p>
+      <ol>
+        <li>Call or flag down help at the nearest busy spot — a market, school, church or checkpoint is safer to approach than an empty road.</li>
+        <li>If you have signal, call the numbers below. No signal? Ask a trader or okada rider to help place the call.</li>
+        <li>Share your last known landmark — a junction, market or school name. Exact street addresses rarely exist here.</li>
+        <li>Once safe, add the route to this guide so the next person doesn't repeat it.</li>
+      </ol>
+      <a class="callbtn" href="tel:112">📞 Call 112 — National Emergency Line</a>
+
+      <button class="sosbtn" onclick="sendSOS()">🆘 Send SOS to my trusted contacts</button>
+      <p style="font-size:.72rem;opacity:.75;margin-top:8px;">Opens your phone's SMS app with your current location pre-filled — you still tap send. Needs GPS + a moment of signal to attach your location; the message still opens without it, just without coordinates.</p>
+
+      <div style="margin-top:14px;">
+        <b style="font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;opacity:.85;">Trusted contacts</b>
+        <div id="contactList"></div>
+        <button class="addcontactbtn" onclick="addContactRow()">+ Add trusted contact</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Corper Welcome Pack</h2>
+      <p>A checklist for posting day, first-week essentials and camp packing — check items off as you go, it's saved on this device.</p>
+      <div class="packprogress"><i id="packProgressBar" style="width:0%"></i></div>
+      <div class="packmeta"><span id="packProgressText">0 of 0 done</span><span id="packBadgeHint"></span></div>
+      <div id="packList"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Your contributions</h2>
+      <p style="font-size:.78rem;">Personal stats, saved on this device only — this isn't a shared community leaderboard (that would need an online backend), just your own progress.</p>
+      <div class="statrow" style="margin:10px 0 0;">
+        <div class="statbox"><b id="stat-added">0</b><span>Places added</span></div>
+        <div class="statbox"><b id="stat-rated">0</b><span>Places rated</span></div>
+      </div>
+      <div class="badgerow" id="badgeRow"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Data &amp; battery</h2>
+      <div class="toggleRow">
+        <div>
+          <b style="font-size:.85rem;">Lite mode</b>
+          <div style="font-size:.72rem;color:var(--muted);max-width:26ch;">Skips the live map and decorative font when there's a connection, to save data on a small bundle.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="liteToggle" onchange="setLiteMode(this.checked)"><span class="track"><span class="knob"></span></span></label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Ask for directions — common Igbo phrases</h2>
+      <p>Useful when network fails and you need to ask someone on the road. Pronunciation varies by dialect across the Ngwa area, but these are widely understood.</p>
+      <div class="phraseCard"><div class="eng">Please, where is...?</div><div class="igbo">Biko, ebee ka ... dị?<button class="pronounceBtn" style="margin-left:8px;display:inline-flex;vertical-align:middle;" onclick="speakName('Biko, ebee ka dị')" aria-label="Hear this phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button></div></div>
+      <div class="phraseCard"><div class="eng">I am lost / I don't know my way</div><div class="igbo">Efu m ụzọ<button class="pronounceBtn" style="margin-left:8px;display:inline-flex;vertical-align:middle;" onclick="speakName('Efu m ụzọ')" aria-label="Hear this phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button></div></div>
+      <div class="phraseCard"><div class="eng">Please help me</div><div class="igbo">Biko nyere m aka<button class="pronounceBtn" style="margin-left:8px;display:inline-flex;vertical-align:middle;" onclick="speakName('Biko nyere m aka')" aria-label="Hear this phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button></div></div>
+      <div class="phraseCard"><div class="eng">Which way to Okpuala-Ngwa?</div><div class="igbo">Kedu ụzọ e si aga Okpuala-Ngwa?<button class="pronounceBtn" style="margin-left:8px;display:inline-flex;vertical-align:middle;" onclick="speakName('Kedu ụzọ e si aga Okpuala-Ngwa')" aria-label="Hear this phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button></div></div>
+      <div class="phraseCard"><div class="eng">Thank you</div><div class="igbo">Daalụ<button class="pronounceBtn" style="margin-left:8px;display:inline-flex;vertical-align:middle;" onclick="speakName('Daalụ')" aria-label="Hear this phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button></div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Pronouncing village names</h2>
+      <p>Every place has a "Hear it" button and a syllable guide (e.g. <i>Say it: Ok·pu·a·la</i>). The syllable split is generated automatically from Igbo spelling rules, so treat it as a rough guide rather than a tonal authority — Igbo is a tonal language and written syllables alone don't capture tone.</p>
+      <p>"Hear it" uses your phone's own text-to-speech. Most devices don't yet ship a native Igbo voice, so it will play in the closest voice available (usually English) rather than true Igbo pronunciation — still useful as a starting point, best paired with asking a local.</p>
+    </div>
+
+    <div class="panel">
+      <h2>How this guide works</h2>
+      <ul>
+        <li><b>Verified</b> — checked against public records: LGA headquarters, official secretariats, national emergency lines.</li>
+        <li><b>Community</b> — added by app users. Useful, but not independently confirmed — double-check anything safety-critical.</li>
+        <li>Everything here works with no internet once open, including adding places and rating them — your changes save to this device. "Get directions" and the live map need a brief connection; with no signal, Map switches automatically to an offline schematic layout instead.</li>
+        <li>Your star ratings and notes on places are private to your device and never shared.</li>
+      </ul>
+      <p style="margin-top:10px;">This guide covers all 17 LGAs of Abia State. Coverage is deepest for Isiala Ngwa North (HQ: Okpuala-Ngwa) and Isiala Ngwa South (HQ: Omoba) — the other 15 LGAs have a starting set of entries and will grow as more corpers and residents add verified places.</p>
+    </div>
+
+    <div class="panel">
+      <h2>App icon</h2>
+      <div class="iconbox">
+        <div class="icon-badge" id="heroIconMount5"></div>
+        <div class="txt">Save this as your home-screen icon.</div>
+        <button class="dlbtn" onclick="downloadIcon()">Download PNG</button>
+      </div>
+      <p style="margin-top:10px;">On a phone browser: open this file, then "Add to Home Screen" — it launches full-screen like an app, and works offline once loaded.</p>
+    </div>
+    <p style="text-align:center;font-size:.7rem;color:var(--muted);margin:18px 0 4px;">NaAbia · v5.0</p>
+  </main>
+</div>
+
+<nav class="tabbar">
+  <button data-tab="explore" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
+    <span>Explore</span>
+  </button>
+  <button data-tab="saved">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+    <span>Saved</span>
+  </button>
+  <button data-tab="add">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Add</span>
+  </button>
+  <button data-tab="concierge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span>Concierge</span>
+  </button>
+  <button data-tab="guide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <span>Guide</span>
+  </button>
+</nav>
+
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="handle"></div>
+  <div class="sheet-top">
+    <div class="thumb" id="sheetThumb"></div>
+    <div class="titles">
+      <h3 id="sheetName"></h3>
+      <div class="meta" id="sheetMeta"></div>
+      <div class="pronounceRow">
+        <button class="pronounceBtn" onclick="speakName(document.getElementById('sheetNamePlain').textContent)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span>Hear it</span>
+        </button>
+        <span class="syllableGuide" id="sheetSyllables"></span>
+      </div>
+      <span id="sheetNamePlain" style="display:none;"></span>
+    </div>
+    <button class="closebtn" onclick="closeSheet()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <p class="desc" id="sheetDesc"></p>
+  <div id="sheetTip"></div>
+  <div>
+    <label style="display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-top:12px;">Your rating (private, saved on this device)</label>
+    <div class="starrow" id="sheetStars"></div>
+    <textarea class="ratingnote" id="sheetNote" placeholder="Your private note about this place (optional)…"></textarea>
+  </div>
+  <div class="datarow">
+    <div><label>Area</label><div class="val" id="sheetArea">—</div></div>
+    <div><label>LGA</label><div class="val" id="sheetLga">—</div></div>
+  </div>
+  <hr class="div">
+  <div class="actionrow">
+    <button id="sheetSaveBtn" onclick="toggleSaveFromSheet()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      <span>Save place</span>
+    </button>
+    <a id="sheetCallBtn" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span>Call</span>
+    </a>
+  </div>
+  <a class="directionsbtn" id="sheetDirBtn" href="#" target="_blank" rel="noopener">
+    <span>Get directions</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M7 17 17 7M7 7h10v10"/></svg>
+  </a>
+  <div id="sheetPhoneFooter"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= ICON (vector, drawn once, reused everywhere) ================= */
+function drawIcon(ctx, size){
+  const s = size;
+  ctx.clearRect(0,0,s,s);
+  const r = s*0.215;
+  // rounded rect bg
+  const grad = ctx.createRadialGradient(s*0.4,s*0.35,s*0.05,s*0.5,s*0.5,s*0.7);
+  grad.addColorStop(0,"#1E4430"); grad.addColorStop(1,"#0F2417");
+  ctx.fillStyle = grad;
+  roundRect(ctx,0,0,s,s,r); ctx.fill();
+  // ring
+  const cx=s*0.5, cy=s*0.46, rad=s*0.30;
+  ctx.strokeStyle = "#CDA43F"; ctx.lineWidth = s*0.028;
+  ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.stroke();
+  // ticks
+  ctx.strokeStyle="#E8C874"; ctx.lineWidth=s*0.016;
+  for(let i=0;i<4;i++){
+    const a = i*Math.PI/2;
+    const x1=cx+Math.cos(a)*(rad+s*0.02), y1=cy+Math.sin(a)*(rad+s*0.02);
+    const x2=cx+Math.cos(a)*(rad+s*0.065), y2=cy+Math.sin(a)*(rad+s*0.065);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  // needle (diamond)
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.beginPath();
+  ctx.moveTo(0,-rad*0.82); ctx.lineTo(rad*0.24,0); ctx.lineTo(0,rad*0.3); ctx.closePath();
+  ctx.fillStyle="#E8C874"; ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0,rad*0.82); ctx.lineTo(-rad*0.24,0); ctx.lineTo(0,rad*0.3); ctx.closePath();
+  ctx.fillStyle="#8A6A1F"; ctx.fill();
+  ctx.restore();
+  // center dot
+  ctx.fillStyle="#12281B";
+  ctx.beginPath(); ctx.arc(cx,cy,rad*0.09,0,Math.PI*2); ctx.fill();
+  // base pin dot
+  ctx.fillStyle="#CDA43F";
+  ctx.beginPath(); ctx.arc(cx,s*0.855,s*0.028,0,Math.PI*2); ctx.fill();
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+let ICON_DATA_URL = "icon-512.png";
+function buildIcon(){
+  document.querySelectorAll('.icon-badge').forEach(el=>{
+    el.innerHTML = `<img class="icon-img" src="${ICON_DATA_URL}" alt="NaAbia icon">`;
+  });
+  const sp = document.getElementById('splashIconMount');
+  const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+  img.setAttributeNS('http://www.w3.org/1999/xlink','href',ICON_DATA_URL);
+  img.setAttribute('width','100'); img.setAttribute('height','100');
+  sp.appendChild(img);
+}
+function downloadIcon(){
+  const link = document.createElement('a');
+  link.download = 'naabia-icon.png';
+  link.href = ICON_DATA_URL;
+  link.click();
+}
+
+/* ================= Category icons (line SVG) ================= */
+const CAT_ICONS = {
+  village:'<path d="M3 12l9-9 9 9"/><path d="M9 21V12h6v9"/>',
+  school:'<path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/>',
+  health:'<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9Z"/><path d="M9 12h6M12 9v6"/>',
+  market:'<path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/>',
+  secretariat:'<path d="M6 22V9l6-4 6 4v13"/><path d="M10 22v-6h4v6"/><path d="M9 12h1M14 12h1M9 16h1M14 16h1"/>',
+  road:'<path d="M4 22 10 2h4l6 20"/><path d="M12 2v20M9 12h6"/>',
+  checkpoint:'<path d="M12 2 3 6v6c0 5 4 9 9 10 5-1 9-5 9-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  nysc:'<path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5"/>',
+  emergency:'<path d="M12 2 2 21h20L12 2Z"/><path d="M12 9v5M12 17h.01"/>',
+  bank:'<path d="M3 10 12 4l9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 21h18"/>',
+  ppa:'<rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>'
+};
+function catIconSVG(cat, strokeW){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeW||2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${CAT_ICONS[cat]||CAT_ICONS.village}</svg>`;
+}
+
+/* ================= Data ================= */
+const CATEGORY_LABELS = {
+  village:"Villages", school:"Schools", health:"Health", market:"Markets",
+  secretariat:"Secretariats", road:"Roads", checkpoint:"Checkpoints", nysc:"NYSC", emergency:"Emergency",
+  bank:"Banks & ATMs", ppa:"PPAs"
+};
+const CATEGORY_ORDER = ["village","market","health","school","ppa","secretariat","bank","road","checkpoint","nysc","emergency"];
+const ABIA_LGAS = ["Aba North","Aba South","Arochukwu","Bende","Ikwuano","Isiala-Ngwa North","Isiala-Ngwa South",
+  "Isuikwuato","Obingwa","Ohafia","Osisioma","Ugwunagbo","Ukwa East","Ukwa West","Umuahia North","Umuahia South","Umunneochi"];
+
+const SEED = [
+  {id:"seed-hq-north", category:"secretariat", name:"Isiala Ngwa North Secretariat", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa", lat:5.3667, lng:7.5167,
+   desc:"The local government administrative offices serving communities across Isiala Ngwa North.",
+   tip:"Public offices are generally easiest to visit before 2pm on weekdays.", phone:"", verified:true},
+  {id:"seed-hq-south", category:"secretariat", name:"Isiala Ngwa South Secretariat", lga:"Isiala-Ngwa South", town:"Omoba", lat:5.2833, lng:7.4500,
+   desc:"The local government administrative offices serving communities across Isiala Ngwa South. Omoba is a railway town roughly 22km from Aba.",
+   tip:"Public offices are generally easiest to visit before 2pm on weekdays.", phone:"", verified:true},
+
+  {id:"seed-v-n1", category:"village", name:"Nsulu Town", lga:"Isiala-Ngwa North", town:"Nsulu", desc:"One of the larger towns in Isiala Ngwa North — a useful landmark and starting point for finding services nearby.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n2", category:"village", name:"Ngwa Ukwu Town", lga:"Isiala-Ngwa North", town:"Ngwa Ukwu", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n3", category:"village", name:"Ama-Asa Town", lga:"Isiala-Ngwa North", town:"Ama-Asa", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n4", category:"village", name:"Amapu Ntigha Town", lga:"Isiala-Ngwa North", town:"Amapu Ntigha", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n5", category:"village", name:"Amasa-Ntigha Town", lga:"Isiala-Ngwa North", town:"Amasa-Ntigha", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n6", category:"village", name:"Ihie Town", lga:"Isiala-Ngwa North", town:"Ihie", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n7", category:"village", name:"Umuoha Town", lga:"Isiala-Ngwa North", town:"Umuoha", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n8", category:"village", name:"Mbawsi / Umuomainta", lga:"Isiala-Ngwa North", town:"Mbawsi", desc:"Town in Isiala Ngwa North.", tip:"", phone:"", verified:true},
+  {id:"seed-v-n9", category:"village", name:"Osokwa", lga:"Isiala-Ngwa North", town:"Osokwa", lat:5.4000, lng:7.5000, desc:"Town in Isiala Ngwa North, known locally as a gateway toward Umuahia.", tip:"", phone:"", verified:false},
+  {id:"seed-v-n10", category:"village", name:"Amator", lga:"Isiala-Ngwa North", town:"Amator", lat:5.3500, lng:7.5500, desc:"Village in Isiala Ngwa North.", tip:"Eke market day.", phone:"", verified:false},
+
+  {id:"seed-v-s1", category:"village", name:"Omoba Town", lga:"Isiala-Ngwa South", town:"Omoba", lat:5.2833, lng:7.4500, desc:"LGA headquarters town, on the Aba–Umuahia railway line.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s2", category:"village", name:"Amaise / Amaise Anaba", lga:"Isiala-Ngwa South", town:"Amaise", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s3", category:"village", name:"Ngwaobi Town", lga:"Isiala-Ngwa South", town:"Ngwaobi", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s4", category:"village", name:"Mbutu Ukwu Town", lga:"Isiala-Ngwa South", town:"Mbutu Ukwu", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s5", category:"village", name:"Mbutu Ngwa Town", lga:"Isiala-Ngwa South", town:"Mbutu Ngwa", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s6", category:"village", name:"Ehina Guru Osokwa", lga:"Isiala-Ngwa South", town:"Ehina Guru", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s7", category:"village", name:"Akunekpu Eziama na Obuba", lga:"Isiala-Ngwa South", town:"Eziama", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s8", category:"village", name:"Ovungwu Town", lga:"Isiala-Ngwa South", town:"Ovungwu", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s9", category:"village", name:"Okporo Ahaba", lga:"Isiala-Ngwa South", town:"Okporo Ahaba", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s10", category:"village", name:"Ovuokwu Town", lga:"Isiala-Ngwa South", town:"Ovuokwu", desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:true},
+  {id:"seed-v-s11", category:"village", name:"Nsirimo", lga:"Isiala-Ngwa South", town:"Nsirimo", lat:5.3000, lng:7.4667, desc:"Town in Isiala Ngwa South.", tip:"", phone:"", verified:false},
+
+  {id:"seed-nysc-1", category:"nysc", name:"NYSC Abia State Secretariat", lga:"Isiala-Ngwa North", town:"Umuahia",
+   desc:"State secretariat covering all Abia LGAs — for redeployment, clearance and documentation.",
+   tip:"Orientation camp is at Umunna, Bende LGA.", phone:"08033575318 / 09056444430", verified:true},
+  {id:"seed-nysc-2", category:"nysc", name:"NYSC Abia State Secretariat", lga:"Isiala-Ngwa South", town:"Umuahia",
+   desc:"Same state secretariat as listed under North — also serves corps members posted to Isiala Ngwa South.",
+   tip:"Orientation camp is at Umunna, Bende LGA.", phone:"08033575318 / 09056444430", verified:true},
+  {id:"seed-nysc-3", category:"nysc", name:"NYSC LGA Inspector's Office — North", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa",
+   desc:"Suggested LGA-level NYSC contact point, based at the LGA Secretariat.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-nysc-4", category:"nysc", name:"NYSC LGA Inspector's Office — South", lga:"Isiala-Ngwa South", town:"Omoba",
+   desc:"Suggested LGA-level NYSC contact point, based at the LGA Secretariat.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+
+  {id:"seed-em-1", category:"emergency", name:"National Emergency Line", lga:"Isiala-Ngwa North", town:"—", desc:"Toll-free, all networks. Connects to police, fire, ambulance and disaster response nationwide.", tip:"", phone:"112", verified:true},
+  {id:"seed-em-2", category:"emergency", name:"National Emergency Line", lga:"Isiala-Ngwa South", town:"—", desc:"Toll-free, all networks. Connects to police, fire, ambulance and disaster response nationwide.", tip:"", phone:"112", verified:true},
+  {id:"seed-em-3", category:"emergency", name:"FRSC — Federal Road Safety Corps", lga:"Isiala-Ngwa North", town:"—", desc:"For road accidents and road-related emergencies, toll-free.", tip:"", phone:"122", verified:true},
+  {id:"seed-em-4", category:"emergency", name:"FRSC — Federal Road Safety Corps", lga:"Isiala-Ngwa South", town:"—", desc:"For road accidents and road-related emergencies, toll-free.", tip:"", phone:"122", verified:true},
+
+  {id:"seed-ph-1", category:"emergency", name:"Divisional Police HQ (Isiala Ngwa North)", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa", desc:"Add the direct line for the local police division once confirmed.", tip:"", phone:"", verified:false},
+  {id:"seed-ph-2", category:"emergency", name:"Divisional Police HQ (Isiala Ngwa South)", lga:"Isiala-Ngwa South", town:"Omoba", desc:"Add the direct line for the local police division once confirmed.", tip:"", phone:"", verified:false},
+  {id:"seed-ph-3", category:"checkpoint", name:"Town Union / Vigilante Contact (North)", lga:"Isiala-Ngwa North", town:"—", desc:"Add a trusted local vigilante or town union contact for this LGA — useful after dark.", tip:"", phone:"", verified:false},
+  {id:"seed-ph-4", category:"checkpoint", name:"Town Union / Vigilante Contact (South)", lga:"Isiala-Ngwa South", town:"—", desc:"Add a trusted local vigilante or town union contact for this LGA — useful after dark.", tip:"", phone:"", verified:false},
+
+  // Verified health facilities (confirmed via public reporting, 2024–2026)
+  {id:"seed-h-1", category:"health", name:"Okpuala Ngwa General Hospital", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa",
+   desc:"General hospital serving both Isiala Ngwa North and South LGAs. As of May 2026 it's undergoing a 100-bed reconstruction commissioned by the state government, so some services may be limited during the rebuild.",
+   tip:"Confirm which wards are open before relying on it for anything beyond first response.", phone:"", verified:true},
+  {id:"seed-h-2", category:"health", name:"Government Cottage Hospital, Umuihie", lga:"Isiala-Ngwa South", town:"Okporo Ahaba",
+   desc:"Cottage hospital in Umuihie, Okporo Ahaba — recently rebuilt, retrofitted and reopened.", tip:"", phone:"", verified:true},
+  {id:"seed-h-3", category:"health", name:"Primary Health Centres (North)", lga:"Isiala-Ngwa North", town:"Various",
+   desc:"Public PHCs designated for Isiala Ngwa North: Amuosu, Avo Ntigha, and Akpu na Ekpu.", tip:"", phone:"", verified:true},
+  {id:"seed-h-4", category:"health", name:"Primary Health Centres (South)", lga:"Isiala-Ngwa South", town:"Various",
+   desc:"Public PHCs designated for Isiala Ngwa South: Ugba, Eketa, Osokwa Model, and Omoba.", tip:"", phone:"", verified:true},
+  {id:"seed-h-5", category:"health", name:"Federal Medical Centre (FMC) Umuahia", lga:"Umuahia North", town:"Umuahia",
+   desc:"Suggested as a major referral hospital for the state capital area.", tip:"Community tip — not independently verified. For serious cases beyond a General Hospital's capacity.", phone:"", verified:false},
+  {id:"seed-h-6", category:"health", name:"Aba General Hospital", lga:"Aba South", town:"Aba",
+   desc:"Suggested general hospital serving Aba.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-h-7", category:"health", name:"General Hospital, Omoba", lga:"Isiala-Ngwa South", town:"Omoba",
+   desc:"Suggested general hospital at the LGA headquarters.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+
+  // Community-contributed tips — not independently verified, flagged accordingly
+  {id:"seed-c-1", category:"market", name:"Okpuala Main Market", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa",
+   desc:"Suggested by an app contributor as a food/foodstuff market.", tip:"Community tip — not independently verified, please confirm locally.", phone:"", verified:false},
+  {id:"seed-c-2", category:"market", name:"Amator Eke Market", lga:"Isiala-Ngwa North", town:"—",
+   desc:"Suggested by an app contributor as a food/foodstuff market.", tip:"Community tip — not independently verified, please confirm locally.", phone:"", verified:false},
+  {id:"seed-c-3", category:"road", name:"Osokwa Junction — transport toward Aba", lga:"Isiala-Ngwa South", town:"Osokwa",
+   desc:"Suggested by an app contributor as a pickup point for shared buses toward Aba.", tip:"Community tip (unverified): fare/time reported around ₦800, ~45 minutes — fares change often, confirm before travelling.", phone:"", verified:false},
+  {id:"seed-c-4", category:"bank", name:"First Bank — Okpuala Ngwa", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa",
+   desc:"Suggested by an app contributor as a bank branch near the LGA secretariat.", tip:"Community tip — not independently verified. Branch hours, ATM uptime and exact location can vary; confirm locally.", phone:"", verified:false},
+  {id:"seed-c-5", category:"bank", name:"Bank / ATM (Isiala Ngwa South)", lga:"Isiala-Ngwa South", town:"—",
+   desc:"No bank branch or ATM confirmed yet for this LGA.", tip:"If you know one near Omoba or elsewhere in Isiala Ngwa South, please add it here for the next corper.", phone:"", verified:false},
+  {id:"seed-c-6", category:"road", name:"Okpuala Ngwa — transport toward Umuahia", lga:"Isiala-Ngwa North", town:"Okpuala Ngwa",
+   desc:"Suggested by an app contributor as a pickup point for shared buses toward Umuahia.", tip:"Community tip (unverified): fare/time reported around ₦500, ~30 minutes — fares change often, confirm before travelling.", phone:"", verified:false},
+  {id:"seed-c-7", category:"road", name:"Omoba — transport toward Aba", lga:"Isiala-Ngwa South", town:"Omoba",
+   desc:"Suggested by an app contributor as a pickup point for shared buses toward Aba.", tip:"Community tip (unverified): fare/time reported around ₦600, ~35 minutes — fares change often, confirm before travelling.", phone:"", verified:false},
+  {id:"seed-c-8", category:"bank", name:"Zenith Bank — Umuahia", lga:"Umuahia North", town:"Umuahia",
+   desc:"Suggested branch in the state capital.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+
+  // ===== State-wide seed, adapted from the corper directory data you provided =====
+  // All entries below are Community (unverified) — please confirm locally before relying on anything safety-critical.
+  {id:"seed-sw-1", category:"secretariat", name:"Aba South — Commercial City Centre", lga:"Aba South", town:"Aba", lat:5.1167, lng:7.3667,
+   desc:"Aba is Abia's main commercial city, home to Ariaria International Market — often cited as the biggest market in West Africa.",
+   tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-2", category:"market", name:"Ariaria International Market", lga:"Aba North", town:"Ariaria", lat:5.1300, lng:7.3800,
+   desc:"Large market known for shoes, bags and clothing manufacturing.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-3", category:"secretariat", name:"Umuahia — Abia State Capital", lga:"Umuahia North", town:"Umuahia", lat:5.5333, lng:7.4833,
+   desc:"State capital of Abia, seat of the Government House.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-4", category:"village", name:"Ubakala", lga:"Umuahia South", town:"Ubakala", lat:5.5000, lng:7.5000, desc:"Town in Umuahia South.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-5", category:"secretariat", name:"Ohafia LGA Secretariat", lga:"Ohafia", town:"Elu", lat:5.6500, lng:7.8000,
+   desc:"Ohafia LGA headquarters, sometimes referred to as \"Warrior Town\" for its cultural history.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-6", category:"village", name:"Arochukwu Town", lga:"Arochukwu", town:"Arochukwu", lat:5.3833, lng:7.9000,
+   desc:"LGA headquarters, home to the Long Juju Shrine — a notable historical/tourist site.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-7", category:"secretariat", name:"Bende LGA Secretariat", lga:"Bende", town:"Bende", lat:5.5667, lng:7.6167, desc:"Bende LGA headquarters.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+  {id:"seed-sw-8", category:"road", name:"Osisioma Junction", lga:"Osisioma", town:"Osisioma", lat:5.1000, lng:7.3833,
+   desc:"Suggested as a transport hub connecting Aba toward Port Harcourt.", tip:"Community tip — not independently verified.", phone:"", verified:false},
+
+  // ===== Schools, researched per LGA (Aug 2026). "Verified" = cross-confirmed by
+  // an independent source (e.g. Wikipedia); "Community" = found in one directory
+  // listing only, not independently cross-checked — please confirm before relying on it. =====
+  {id:"sch-1", category:"school", name:"Government College Umuahia", lga:"Umuahia North", town:"Umuahia",
+   desc:"One of Nigeria's oldest and best-known boys' secondary schools, founded 1929.", tip:"", phone:"", verified:true},
+  {id:"sch-2", category:"school", name:"Williams Memorial Secondary School", lga:"Umuahia North", town:"Umuahia",
+   desc:"Secondary school in Umuahia North.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-3", category:"school", name:"Ngwa High School", lga:"Osisioma", town:"Abayi",
+   desc:"Boys' secondary school founded 1954, located in Abayi.", tip:"", phone:"", verified:true},
+  {id:"sch-4", category:"school", name:"Aggrey Memorial Secondary School", lga:"Arochukwu", town:"Arochukwu",
+   desc:"Co-educational secondary school founded 1931 by educator Alvan Ikoku.", tip:"", phone:"", verified:true},
+  {id:"sch-5", category:"school", name:"Abia State College of Education (Technical)", lga:"Arochukwu", town:"Arochukwu",
+   desc:"State-owned tertiary college, established 1993.", tip:"", phone:"", verified:true},
+  {id:"sch-6", category:"school", name:"Girls High School, Ogbor Hill", lga:"Aba North", town:"Ogbor Hill",
+   desc:"Government secondary school in Aba North.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-7", category:"school", name:"Girls' Technical College, Aba North", lga:"Aba North", town:"—",
+   desc:"Government technical secondary school in Aba North.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-8", category:"school", name:"Oboro Secondary School", lga:"Ikwuano", town:"Isi-Ala Oboro",
+   desc:"Secondary school in Ikwuano.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-9", category:"school", name:"Senior Science School, Ariam", lga:"Ikwuano", town:"Ariam",
+   desc:"Science-focused secondary school in Ikwuano.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-10", category:"school", name:"Abia State Senior Science School", lga:"Isiala-Ngwa North", town:"—",
+   desc:"Science-focused secondary school in Isiala Ngwa North.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-11", category:"school", name:"Ihie High School", lga:"Isiala-Ngwa North", town:"Ihie",
+   desc:"Secondary school in Ihie, Isiala Ngwa North.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-12", category:"school", name:"St. Ephraim's Secondary School", lga:"Isiala-Ngwa South", town:"—",
+   desc:"Secondary school in Isiala Ngwa South.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-13", category:"school", name:"Our Lady's Comprehensive Secondary School", lga:"Isiala-Ngwa South", town:"Umueleghele",
+   desc:"Secondary school in Umueleghele, Isiala Ngwa South.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-14", category:"school", name:"Uturu Secondary School", lga:"Isuikwuato", town:"Uturu",
+   desc:"Secondary school in Uturu, Isuikwuato.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-15", category:"school", name:"Ovom High School", lga:"Obingwa", town:"Ovom",
+   desc:"Secondary school in Ovom, Obingwa.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-16", category:"school", name:"Ohafia Girls' Secondary School", lga:"Ohafia", town:"Amaekpu Ohafia",
+   desc:"Girls' secondary school in Amaekpu, Ohafia — also used as a public landmark locally.", tip:"", phone:"", verified:true},
+  {id:"sch-17", category:"school", name:"Akwete Secondary Technical School", lga:"Ukwa East", town:"Akwete",
+   desc:"Technical secondary school in Akwete, Ukwa East — also a notable local landmark.", tip:"", phone:"", verified:true},
+  {id:"sch-18", category:"school", name:"Federal Science and Technical College, Ohanso", lga:"Ukwa East", town:"Ohanso",
+   desc:"Federal science/technical college in Ukwa East.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-19", category:"school", name:"Umuopara Secondary School", lga:"Umuahia South", town:"Umuopara",
+   desc:"Secondary school in Umuopara, Umuahia South.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+  {id:"sch-20", category:"school", name:"Evangel High School", lga:"Umuahia South", town:"Olokoro",
+   desc:"Secondary school in Olokoro, Umuahia South.", tip:"Community tip — sourced from a school directory, not independently confirmed.", phone:"", verified:false},
+
+  // LGAs with no verified school added yet — flagged honestly rather than guessed
+  {id:"sch-gap-1", category:"school", name:"Schools in Aba South — not yet added", lga:"Aba South", town:"—", desc:"No specific school confirmed for this LGA yet.", tip:"If you know one, please add it via the Add tab.", phone:"", verified:false},
+  {id:"sch-gap-2", category:"school", name:"Schools in Bende — not yet added", lga:"Bende", town:"—", desc:"No specific school confirmed for this LGA yet.", tip:"If you know one, please add it via the Add tab.", phone:"", verified:false},
+  {id:"sch-gap-3", category:"school", name:"Schools in Ugwunagbo — not yet added", lga:"Ugwunagbo", town:"—", desc:"No specific school confirmed for this LGA yet.", tip:"If you know one, please add it via the Add tab.", phone:"", verified:false},
+  {id:"sch-gap-4", category:"school", name:"Schools in Ukwa West — not yet added", lga:"Ukwa West", town:"—", desc:"No specific school confirmed for this LGA yet.", tip:"If you know one, please add it via the Add tab.", phone:"", verified:false},
+  {id:"sch-gap-5", category:"school", name:"Schools in Umunneochi — not yet added", lga:"Umunneochi", town:"—", desc:"No specific school confirmed for this LGA yet.", tip:"If you know one, please add it via the Add tab.", phone:"", verified:false},
+];
+
+/* ================= State ================= */
+let ALL_PLACES = [];
+let FAVORITES = [];
+let RATINGS = {}; // { placeId: { stars, note } }
+let currentLga = "all";
+let currentCat = "all";
+let verifiedOnly = false;
+let mapMode = false;
+const STORAGE_KEY = "directory-v5";
+const FAV_KEY = "favorites-v2";
+const RATINGS_KEY = "ratings-v1";
+const CONTACTS_KEY = "sos-contacts-v1";
+const PACK_KEY = "welcome-pack-v1";
+const LITE_KEY = "lite-mode-v1";
+let CONTACTS = [];
+let PACK_DONE = {};
+let LITE_MODE = false;
+
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* Storage adapter: uses Claude's window.storage when previewing inside claude.ai,
+   falls back to localStorage everywhere else (standalone file, home-screen app,
+   or once wrapped as a native mobile app) — so data actually persists offline. */
+const Store = {
+  hasCloud(){ return typeof window.storage !== 'undefined' && window.storage; },
+  async get(key){
+    if(this.hasCloud()){
+      try{ const r = await window.storage.get(key, true); if(r && r.value!=null) return r.value; }
+      catch(e){ /* fall through to local */ }
+    }
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  },
+  async set(key, value){
+    let ok = false;
+    if(this.hasCloud()){
+      try{ await window.storage.set(key, value, true); ok = true; }catch(e){}
+    }
+    try{ localStorage.setItem(key, value); ok = true; }catch(e){}
+    return ok;
+  }
+};
+
+async function loadData(){
+  try{
+    const raw = await Store.get(STORAGE_KEY);
+    if(raw){ ALL_PLACES = JSON.parse(raw); }
+    else { ALL_PLACES = SEED.slice(); await Store.set(STORAGE_KEY, JSON.stringify(ALL_PLACES)); }
+  }catch(e){ ALL_PLACES = SEED.slice(); }
+  try{
+    const f = await Store.get(FAV_KEY);
+    FAVORITES = f ? JSON.parse(f) : [];
+  }catch(e){ FAVORITES = []; }
+  try{
+    const r = await Store.get(RATINGS_KEY);
+    RATINGS = r ? JSON.parse(r) : {};
+  }catch(e){ RATINGS = {}; }
+  try{
+    const c = await Store.get(CONTACTS_KEY);
+    CONTACTS = c ? JSON.parse(c) : [];
+  }catch(e){ CONTACTS = []; }
+  try{
+    const pk = await Store.get(PACK_KEY);
+    PACK_DONE = pk ? JSON.parse(pk) : {};
+  }catch(e){ PACK_DONE = {}; }
+  try{
+    const lm = await Store.get(LITE_KEY);
+    LITE_MODE = lm === "1";
+  }catch(e){ LITE_MODE = false; }
+  render();
+  renderContacts();
+  renderPack();
+  renderContributions();
+  const lt = document.getElementById('liteToggle');
+  if(lt) lt.checked = LITE_MODE;
+  applyLiteMode();
+}
+async function saveData(){
+  const ok = await Store.set(STORAGE_KEY, JSON.stringify(ALL_PLACES));
+  if(!ok) toast("Couldn't save — storage may be full or blocked");
+}
+async function saveFavorites(){
+  await Store.set(FAV_KEY, JSON.stringify(FAVORITES));
+}
+async function saveRatings(){
+  await Store.set(RATINGS_KEY, JSON.stringify(RATINGS));
+}
+async function saveContacts(){
+  await Store.set(CONTACTS_KEY, JSON.stringify(CONTACTS));
+}
+async function savePack(){
+  await Store.set(PACK_KEY, JSON.stringify(PACK_DONE));
+}
+async function saveLiteMode(){
+  await Store.set(LITE_KEY, LITE_MODE ? "1" : "0");
+}
+
+/* ================= Filtering / rendering ================= */
+function filteredPlaces(){
+  const q = (document.getElementById('searchbox')?.value || "").trim().toLowerCase();
+  return ALL_PLACES.filter(p=>{
+    if(currentLga!=="all" && p.lga!==currentLga) return false;
+    if(currentCat!=="all" && p.category!==currentCat) return false;
+    if(verifiedOnly && !p.verified) return false;
+    if(q){
+      const hay = (p.name+" "+p.town+" "+p.desc+" "+CATEGORY_LABELS[p.category]).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function cardHTML(p){
+  const check = p.verified ? `<svg class="badge-check" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.4-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4Z"/></svg>` : "";
+  const isFav = FAVORITES.includes(p.id);
+  const myStars = RATINGS[p.id] && RATINGS[p.id].stars;
+  const starsHtml = myStars ? `<div class="mystars">${'★'.repeat(myStars)}${'☆'.repeat(5-myStars)} your rating</div>` : "";
+  return `<div class="place-card" onclick="openSheet('${p.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'){openSheet('${p.id}')}">
+    <div class="thumb">${catIconSVG(p.category)}</div>
+    <div class="body">
+      <div class="titlerow"><h4>${escapeHtml(p.name)}</h4>${check}</div>
+      <div class="meta">${CATEGORY_LABELS[p.category].replace(/s$/,'')} · ${escapeHtml(p.town&&p.town!=='—'?p.town:p.lga)}</div>
+      <div class="desc">${escapeHtml(p.desc)}</div>
+      ${starsHtml}
+    </div>
+    <button class="heartbtn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFav('${p.id}')" aria-label="Save">
+      <svg viewBox="0 0 24 24" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+    </button>
+  </div>`;
+}
+
+function render(){
+  document.getElementById('stat-total').textContent = ALL_PLACES.length;
+  document.getElementById('stat-verified').textContent = ALL_PLACES.filter(p=>p.verified).length;
+  document.getElementById('stat-community').textContent = ALL_PLACES.filter(p=>!p.verified).length;
+
+  const cc = document.getElementById('catchips');
+  cc.innerHTML = `<div class="chip ${currentCat==='all'?'active':''}" data-cat="all" role="button" tabindex="0" aria-pressed="${currentCat==='all'}">All</div>` +
+    CATEGORY_ORDER.map(c=>`<div class="chip ${currentCat===c?'active':''}" data-cat="${c}" role="button" tabindex="0" aria-pressed="${currentCat===c}">${CATEGORY_LABELS[c]}</div>`).join("");
+  cc.querySelectorAll('.chip').forEach(el=>{
+    el.onclick = ()=>{ currentCat = el.dataset.cat; render(); };
+    el.onkeydown = (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } };
+  });
+
+  renderResults();
+  renderSaved();
+}
+
+function renderResults(){
+  const list = filteredPlaces();
+  document.getElementById('listCount').textContent = list.length + " listed";
+  document.getElementById('listTitle').textContent = currentCat==='all' ? "Around Abia State" : CATEGORY_LABELS[currentCat];
+  const el = document.getElementById('results');
+  if(list.length===0){
+    el.innerHTML = '<div class="empty">Nothing found. Try another search, or add it yourself in the Add tab.</div>';
+  } else {
+    el.innerHTML = list.map(cardHTML).join("");
+  }
+  if(mapMode) renderMap(list);
+}
+
+function renderSaved(){
+  const list = ALL_PLACES.filter(p=>FAVORITES.includes(p.id));
+  const el = document.getElementById('savedResults');
+  el.innerHTML = list.length ? list.map(cardHTML).join("") : '<div class="empty">Nothing saved yet. Tap the heart on any place to keep it here.</div>';
+}
+
+function toggleVerifiedOnly(){
+  verifiedOnly = !verifiedOnly;
+  const btn = document.getElementById('verifiedToggle');
+  btn.classList.toggle('active', verifiedOnly);
+  btn.setAttribute('aria-pressed', String(verifiedOnly));
+  renderResults();
+}
+
+function toggleFav(id){
+  const i = FAVORITES.indexOf(id);
+  if(i>-1) FAVORITES.splice(i,1); else FAVORITES.push(id);
+  saveFavorites();
+  render();
+}
+
+/* ================= Map: live (online) + schematic (offline fallback) ================= */
+let leafletReady = false, leafletLoading = false, leafletFailed = false;
+let liveMap = null, liveMarkers = [];
+
+function isOnline(){ return typeof navigator!=='undefined' ? navigator.onLine : true; }
+
+function loadLeaflet(cb){
+  if(leafletReady){ cb(true); return; }
+  if(leafletFailed){ cb(false); return; }
+  if(leafletLoading){ setTimeout(()=>loadLeaflet(cb), 300); return; }
+  leafletLoading = true;
+  const s = document.createElement('script');
+  s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+  const timer = setTimeout(()=>{ if(!leafletReady){ leafletFailed = true; leafletLoading = false; cb(false); } }, 5000);
+  s.onload = ()=>{ clearTimeout(timer); leafletReady = true; leafletLoading = false; cb(true); };
+  s.onerror = ()=>{ clearTimeout(timer); leafletFailed = true; leafletLoading = false; cb(false); };
+  document.head.appendChild(s);
+}
+
+function toggleMapView(){
+  mapMode = !mapMode;
+  document.getElementById('mapview').style.display = mapMode ? '' : 'none';
+  document.getElementById('listview').style.display = mapMode ? 'none' : '';
+  document.getElementById('viewToggleLabel').textContent = mapMode ? 'List' : 'Map';
+  renderResults();
+}
+
+function renderMap(list){
+  const mv = document.getElementById('mapview');
+  if(isOnline() && !leafletFailed && !LITE_MODE){
+    mv.innerHTML = `<div id="liveMap"></div><div class="maphint">Live map · pins are approximate, for orientation only</div>`;
+    loadLeaflet((ok)=>{
+      if(ok) renderLiveMap(list); else renderSchematic(list);
+    });
+  } else {
+    renderSchematic(list);
+  }
+}
+
+function renderLiveMap(list){
+  const mv = document.getElementById('mapview');
+  if(!document.getElementById('liveMap')){
+    mv.innerHTML = `<div id="liveMap"></div><div class="maphint">Live map · pins are approximate, for orientation only</div>`;
+  }
+  const withCoords = list.filter(p=>typeof p.lat==='number' && typeof p.lng==='number');
+  try{
+    if(!liveMap){
+      liveMap = L.map('liveMap', { zoomControl:true }).setView([5.45, 7.55], 9);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:'&copy; OpenStreetMap contributors', maxZoom:18
+      }).addTo(liveMap);
+    } else {
+      liveMap.invalidateSize();
+    }
+    liveMarkers.forEach(m=>liveMap.removeLayer(m));
+    liveMarkers = [];
+    withCoords.forEach(p=>{
+      const marker = L.marker([p.lat, p.lng]).addTo(liveMap);
+      marker.bindPopup(`<b>${escapeHtml(p.name)}</b><br>${escapeHtml(p.lga)}${p.town&&p.town!=='—'?' · '+escapeHtml(p.town):''}`);
+      marker.on('click', ()=>openSheet(p.id));
+      liveMarkers.push(marker);
+    });
+    if(withCoords.length){
+      const bounds = L.latLngBounds(withCoords.map(p=>[p.lat,p.lng]));
+      liveMap.fitBounds(bounds, {padding:[30,30], maxZoom:12});
+    }
+    const hint = document.querySelector('.maphint');
+    if(hint && !withCoords.length) hint.textContent = "No mapped pins in this filter yet — showing the wider Abia view.";
+  }catch(e){
+    renderSchematic(list);
+  }
+}
+
+function renderSchematic(list){
+  const mv = document.getElementById('mapview');
+  liveMap = null; liveMarkers = [];
+  function section(title, items){
+    if(!items.length) return '';
+    return `<div class="maplabel">${title}</div><div class="mapgrid">` +
+      items.map(p=>`<div class="mappin" onclick="openSheet('${p.id}')">${catIconSVG(p.category,2.4)}${escapeHtml(p.name.split(' ')[0])}</div>`).join("") +
+      `</div>`;
+  }
+  const groups = {};
+  list.forEach(p=>{ (groups[p.lga] = groups[p.lga] || []).push(p); });
+  const lgasPresent = ABIA_LGAS.filter(l=>groups[l] && groups[l].length);
+  mv.innerHTML = `<div class="mapwrap">
+    <div class="note">${isOnline() ? 'SCHEMATIC LAYOUT' : 'OFFLINE · SCHEMATIC LAYOUT'} · NOT TO SCALE · TAP A PIN</div>
+    ${lgasPresent.map(l=>section(l, groups[l])).join('')}
+    ${!lgasPresent.length ? '<div class="empty" style="color:rgba(255,255,255,.6)">Nothing to show here.</div>' : ''}
+  </div>`;
+}
+
+/* ---------- Network status ---------- */
+function updateNetStatus(){
+  const el = document.getElementById('netStatus');
+  if(!el) return;
+  const online = isOnline();
+  el.textContent = online ? 'Online' : 'Offline';
+  el.className = 'netpill ' + (online ? 'online' : 'offline');
+  if(mapMode) renderMap(filteredPlaces());
+}
+window.addEventListener('online', updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+
+/* ================= Bottom sheet ================= */
+let sheetPlaceId = null;
+function openSheet(id){
+  const p = ALL_PLACES.find(x=>x.id===id);
+  if(!p) return;
+  sheetPlaceId = id;
+  document.getElementById('sheetThumb').innerHTML = catIconSVG(p.category);
+  document.getElementById('sheetName').innerHTML = escapeHtml(p.name) + (p.verified?` <svg class="badge-check" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.4-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4Z"/></svg>`:"");
+  document.getElementById('sheetNamePlain').textContent = p.name;
+  document.getElementById('sheetSyllables').textContent = "Say it: " + syllableGuide(p.name);
+  document.getElementById('sheetMeta').textContent = CATEGORY_LABELS[p.category].replace(/s$/,'') + " · " + p.lga;
+  document.getElementById('sheetDesc').textContent = p.desc || "";
+  const tipEl = document.getElementById('sheetTip');
+  if(p.tip){
+    tipEl.innerHTML = `<div class="tip ${p.verified?'':'unverified'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>${escapeHtml(p.tip)}</span></div>`;
+  } else { tipEl.innerHTML = ""; }
+  document.getElementById('sheetArea').textContent = (p.town && p.town!=='—') ? p.town : "—";
+  document.getElementById('sheetLga').textContent = p.lga;
+
+  const callBtn = document.getElementById('sheetCallBtn');
+  const phoneFooter = document.getElementById('sheetPhoneFooter');
+  if(p.phone){
+    callBtn.href = "tel:"+p.phone.split('/')[0].replace(/[^0-9+]/g,'');
+    callBtn.style.opacity = 1; callBtn.style.pointerEvents='auto';
+    phoneFooter.innerHTML = `<div class="listedphone">Listed phone · ${escapeHtml(p.phone)}</div>`;
+  } else {
+    callBtn.href = "#"; callBtn.style.opacity = .45; callBtn.style.pointerEvents='none';
+    phoneFooter.innerHTML = `<div class="nonum">No number listed yet — add one from the Add tab.</div>`;
+  }
+
+  const q = encodeURIComponent(`${p.name}, ${p.town&&p.town!=='—'?p.town+', ':''}${p.lga}, Abia State, Nigeria`);
+  document.getElementById('sheetDirBtn').href = `https://www.google.com/maps/search/?api=1&query=${q}`;
+
+  renderStars(id);
+  const noteEl = document.getElementById('sheetNote');
+  noteEl.value = (RATINGS[id] && RATINGS[id].note) || "";
+  noteEl.onchange = ()=>{ setRatingNote(id, noteEl.value); };
+
+  updateSaveBtn();
+  document.getElementById('sheet').classList.add('show');
+  document.getElementById('sheetBackdrop').classList.add('show');
+}
+function renderStars(id){
+  const cur = (RATINGS[id] && RATINGS[id].stars) || 0;
+  const el = document.getElementById('sheetStars');
+  el.innerHTML = [1,2,3,4,5].map(n=>`<button type="button" class="star ${n<=cur?'on':''}" data-n="${n}" aria-label="Rate ${n} star${n>1?'s':''}" aria-pressed="${n<=cur}"><svg viewBox="0 0 24 24" fill="${n<=cur?'currentColor':'none'}" stroke="currentColor" stroke-width="1.6"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg></button>`).join("");
+  el.querySelectorAll('.star').forEach(btn=>{
+    btn.onclick = ()=>{
+      const n = parseInt(btn.dataset.n,10);
+      const cur2 = (RATINGS[id] && RATINGS[id].stars) || 0;
+      setRatingStars(id, n===cur2 ? 0 : n); // tap same star again to clear
+      renderStars(id);
+    };
+  });
+}
+function setRatingStars(id, stars){
+  RATINGS[id] = RATINGS[id] || {};
+  RATINGS[id].stars = stars;
+  if(!RATINGS[id].stars && !RATINGS[id].note) delete RATINGS[id];
+  saveRatings();
+  render();
+}
+function setRatingNote(id, note){
+  RATINGS[id] = RATINGS[id] || {};
+  RATINGS[id].note = note.trim();
+  if(!RATINGS[id].stars && !RATINGS[id].note) delete RATINGS[id];
+  saveRatings();
+  toast("Note saved");
+}
+function updateSaveBtn(){
+  const btn = document.getElementById('sheetSaveBtn');
+  const on = FAVORITES.includes(sheetPlaceId);
+  btn.classList.toggle('on', on);
+  btn.querySelector('span').textContent = on ? 'Saved' : 'Save place';
+  btn.querySelector('svg').setAttribute('fill', on ? 'currentColor':'none');
+}
+function toggleSaveFromSheet(){
+  if(!sheetPlaceId) return;
+  toggleFav(sheetPlaceId);
+  updateSaveBtn();
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('show');
+  document.getElementById('sheetBackdrop').classList.remove('show');
+  sheetPlaceId = null;
+}
+
+/* ================= Tabs ================= */
+function goTab(tab){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.tabbar button').forEach(b=>{ b.onclick = ()=>goTab(b.dataset.tab); });
+function scrollToLost(){ setTimeout(()=>document.getElementById('lostPanel').scrollIntoView({behavior:'smooth'}), 100); }
+
+const lgaSelect = document.getElementById('lgaSelect');
+const fLgaSelect = document.getElementById('f-lga');
+ABIA_LGAS.forEach(lga=>{
+  const opt = document.createElement('option');
+  opt.value = lga; opt.textContent = lga;
+  lgaSelect.appendChild(opt);
+  const opt2 = document.createElement('option');
+  opt2.value = lga; opt2.textContent = lga;
+  fLgaSelect.appendChild(opt2);
+});
+lgaSelect.addEventListener('change', ()=>{
+  currentLga = lgaSelect.value;
+  renderResults();
+});
+document.getElementById('searchbox').addEventListener('input', debounce(renderResults, 150));
+
+/* ================= Add form ================= */
+document.getElementById('addform').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const category = document.getElementById('f-category').value;
+  const name = document.getElementById('f-name').value.trim();
+  const lga = document.getElementById('f-lga').value;
+  const town = document.getElementById('f-town').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  const tip = document.getElementById('f-tip').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  if(!category || !name){ toast("Please fill category and name"); return; }
+  const entry = { id:"u-"+Date.now()+"-"+Math.random().toString(36).slice(2,7), category, name, lga, town, desc, tip, phone, verified:false };
+  ALL_PLACES.push(entry);
+  await saveData();
+  currentCat = category; currentLga = "all";
+  render();
+  renderContributions();
+  haptic();
+  e.target.reset();
+  toast("Added to the guide — thank you");
+  goTab('explore');
+});
+
+/* ================= SOS, trusted contacts, Welcome Pack, contributions, Lite mode ================= */
+function haptic(ms){
+  if('vibrate' in navigator){ try{ navigator.vibrate(ms||12); }catch(e){} }
+}
+
+function renderContacts(){
+  const el = document.getElementById('contactList');
+  if(!el) return;
+  el.innerHTML = CONTACTS.map((c,i)=>`
+    <div class="contactrow">
+      <input type="text" value="${escapeHtml(c.name)}" placeholder="Name" oninput="updateContact(${i},'name',this.value)">
+      <input type="tel" value="${escapeHtml(c.phone)}" placeholder="Phone number" oninput="updateContact(${i},'phone',this.value)">
+      <button class="rm" onclick="removeContact(${i})" aria-label="Remove contact">✕</button>
+    </div>`).join("") || `<p style="font-size:.75rem;color:rgba(255,255,255,.6);margin:6px 0 0;">No trusted contacts yet — add someone who should know if you're in trouble.</p>`;
+}
+function addContactRow(){
+  CONTACTS.push({name:"", phone:""});
+  renderContacts();
+  saveContacts();
+}
+function updateContact(i, field, val){
+  if(!CONTACTS[i]) return;
+  CONTACTS[i][field] = val;
+  saveContacts();
+}
+function removeContact(i){
+  CONTACTS.splice(i,1);
+  renderContacts();
+  saveContacts();
+  haptic();
+}
+function sendSOS(){
+  haptic(30);
+  const validContacts = CONTACTS.filter(c=>c.phone && c.phone.trim());
+  if(!validContacts.length){
+    toast("Add at least one trusted contact's phone number first");
+    return;
+  }
+  const numbers = validContacts.map(c=>c.phone.replace(/[^\d+]/g,'')).join(',');
+  const compose = (locText)=>{
+    const msg = encodeURIComponent(`I need help. This is my location: ${locText}. Sent from NaAbia.`);
+    window.location.href = `sms:${numbers}?body=${msg}`;
+  };
+  if('geolocation' in navigator){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        const {latitude, longitude} = pos.coords;
+        compose(`https://maps.google.com/?q=${latitude},${longitude}`);
+      },
+      ()=>{ compose("location unavailable — no GPS signal, please ask exactly where I am"); },
+      {timeout:6000, maximumAge:60000}
+    );
+  } else {
+    compose("location unavailable on this device");
+  }
+}
+
+/* ---- Welcome Pack ---- */
+const WELCOME_PACK = [
+  {id:"doc-idcard", label:"NYSC ID card"},
+  {id:"doc-posting", label:"Letter of posting"},
+  {id:"doc-callup", label:"Call-up letter / green card"},
+  {id:"doc-passport", label:"Passport photographs (spare set)"},
+  {id:"doc-bank", label:"Bank account details / ATM card"},
+  {id:"cds-register", label:"Register with LGA NYSC office"},
+  {id:"cds-group", label:"Join your CDS group's WhatsApp"},
+  {id:"pack-mat", label:"Sleeping mat / mattress"},
+  {id:"pack-torch", label:"Torchlight or rechargeable lamp"},
+  {id:"pack-firstaid", label:"Small first-aid kit"},
+  {id:"pack-water", label:"Water bottle / storage container"},
+  {id:"local-market", label:"Locate the nearest market"},
+  {id:"local-hospital", label:"Locate the nearest hospital"},
+  {id:"local-bank", label:"Locate the nearest bank/ATM"},
+  {id:"local-contact", label:"Save a local contact (landlord, CDS lead, or neighbour)"},
+];
+function renderPack(){
+  const el = document.getElementById('packList');
+  if(!el) return;
+  el.innerHTML = WELCOME_PACK.map(item=>{
+    const done = !!PACK_DONE[item.id];
+    return `<div class="checkrow ${done?'done':''}">
+      <input type="checkbox" id="pk-${item.id}" ${done?'checked':''} onchange="togglePackItem('${item.id}', this.checked)">
+      <label for="pk-${item.id}">${escapeHtml(item.label)}</label>
+    </div>`;
+  }).join("");
+  updatePackProgress();
+}
+function togglePackItem(id, checked){
+  PACK_DONE[id] = checked;
+  savePack();
+  renderPack();
+  renderContributions();
+  haptic();
+}
+function updatePackProgress(){
+  const total = WELCOME_PACK.length;
+  const done = WELCOME_PACK.filter(i=>PACK_DONE[i.id]).length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  const bar = document.getElementById('packProgressBar');
+  if(bar) bar.style.width = pct + "%";
+  const txt = document.getElementById('packProgressText');
+  if(txt) txt.textContent = `${done} of ${total} done`;
+  const hint = document.getElementById('packBadgeHint');
+  if(hint) hint.textContent = done===total && total>0 ? "🎉 Fully packed!" : "";
+}
+
+/* ---- Contributions (personal, on-device only) ---- */
+function renderContributions(){
+  const addedEl = document.getElementById('stat-added');
+  const ratedEl = document.getElementById('stat-rated');
+  if(!addedEl) return;
+  const addedCount = ALL_PLACES.filter(p=>p.id.startsWith('u-')).length;
+  const ratedCount = Object.values(RATINGS).filter(r=>r.stars).length;
+  addedEl.textContent = addedCount;
+  ratedEl.textContent = ratedCount;
+  const badges = [
+    {id:'first-add', label:'First place added', earned: addedCount>=1},
+    {id:'five-add', label:'5 places added', earned: addedCount>=5},
+    {id:'rater', label:'Rated 3 places', earned: ratedCount>=3},
+    {id:'packed', label:'Welcome Pack complete', earned: WELCOME_PACK.every(i=>PACK_DONE[i.id])},
+  ];
+  const row = document.getElementById('badgeRow');
+  if(row){
+    row.innerHTML = badges.map(b=>`<div class="badge ${b.earned?'earned':''}">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 16.8 6.1 20l1.3-6.6-4.9-4.5 6.6-.8L12 2z"/></svg>
+      ${escapeHtml(b.label)}
+    </div>`).join("");
+  }
+}
+
+/* ---- Lite mode ---- */
+function applyLiteMode(){
+  if(LITE_MODE){
+    document.documentElement.classList.add('lite');
+  } else {
+    document.documentElement.classList.remove('lite');
+    maybeLoadDecorativeFont();
+  }
+}
+function setLiteMode(on){
+  LITE_MODE = on;
+  saveLiteMode();
+  applyLiteMode();
+  haptic();
+  toast(on ? "Lite mode on — saving data" : "Lite mode off");
+}
+
+/* ---- Decorative font: only fetched when online and not in Lite mode ---- */
+let decorativeFontRequested = false;
+function maybeLoadDecorativeFont(){
+  if(decorativeFontRequested || LITE_MODE || !isOnline()) return;
+  decorativeFontRequested = true;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Lobster&display=swap';
+  link.onerror = ()=>{ decorativeFontRequested = false; };
+  document.head.appendChild(link);
+}
+
+/* ---- Seasonal theming (subtle, based on device month) ---- */
+function applySeasonTheme(){
+  const m = new Date().getMonth(); // 0=Jan
+  const isHarmattan = (m===10 || m===11 || m===0 || m===1); // Nov–Feb
+  document.body.classList.toggle('season-harmattan', isHarmattan);
+  document.body.classList.toggle('season-rain', !isHarmattan);
+}
+
+/* ================= Corper Concierge ================= */
+function conciergeVerifiedText(id){
+  const p = ALL_PLACES.find(x=>x.id===id);
+  return p ? `${p.name} — ${p.desc}` : "";
+}
+const CONCIERGE = [
+  {q:"Where is LGA Secretariat?", a:()=>"Okpuala Ngwa for Isiala Ngwa North · Omoba for Isiala Ngwa South. For other LGAs, the secretariat is usually at the town named as headquarters (e.g. Arochukwu, Bende, Ohafia) — search or filter by LGA to see what's been added so far. Public offices are generally easiest to reach on weekday mornings.", verified:true},
+  {q:"Nearest hospital?", a:()=>"Okpuala Ngwa General Hospital serves both North & South LGAs — mid-reconstruction as of May 2026, so some services may be limited meanwhile. Government Cottage Hospital, Umuihie (Okporo Ahaba, South) was recently rebuilt and is functional. PHCs: Amuosu, Avo Ntigha, Akpu na Ekpu (North) · Ugba, Eketa, Osokwa Model, Omoba (South). Elsewhere in Abia, check the Health filter for your LGA — coverage outside Isiala Ngwa is still being filled in by the community.", verified:true},
+  {q:"How do I do NYSC clearance?", a:()=>"Take your ID card and letter of posting to your LGA NYSC office. Requirements can shift, so confirm current ones with your LGA Inspector or CDS WhatsApp group before you go.", verified:true},
+  {q:"When is CDS?", a:()=>"CDS groups typically meet weekly; the exact day depends on your specific group. Community tip (unverified): Saturdays are common in this area, but check with your CDS coordinator or group WhatsApp to confirm this cycle's day and venue.", verified:true},
+  {q:"Biometric or allowance issues?", a:()=>"Raise it first at your LGA NYSC office with your ID, ATM card and portal reference numbers. Persistent portal or allowance issues are usually escalated through the Abia state secretariat — "+ (ALL_PLACES.find(p=>p.id==='seed-nysc-1')?.phone || ''), verified:true},
+  {q:"Emergency numbers?", a:()=>"National Emergency Line: 112 (police, fire, ambulance, toll-free). FRSC (road accidents): 122. These work statewide, not just in Isiala Ngwa.", verified:true},
+  {q:"Transport fares?", a:()=>"Community tips (unverified) — fares and times change often, confirm locally before travelling: Osokwa Junction → Aba ~₦800, ~45 min. Okpuala Ngwa → Umuahia ~₦500, ~30 min. Omoba → Aba ~₦600, ~35 min.", verified:false},
+  {q:"Where to buy food / market?", a:()=>"Community tip (unverified): Okpuala Main Market and Amator Eke Market (Isiala Ngwa North) have been suggested for foodstuff, and Ariaria International Market in Aba North for shoes, bags and clothing. Please confirm locally.", verified:false},
+  {q:"Nearest ATM / bank?", a:()=>"Community tip (unverified): a First Bank branch has been suggested near Okpuala Ngwa (North) and a Zenith Bank branch in Umuahia. Nothing confirmed yet for most other LGAs — if you know one, please add it via the Add tab.", verified:false},
+  {q:"What does NaAbia mean?", a:()=>"\"Na m abịa\" is Igbo for \"I am coming\" — NaAbia is short for Navigate Abia. It's built to work even where signal doesn't reach.", verified:true},
+];
+
+function renderConciergeChips(){
+  const el = document.getElementById('conciergeChips');
+  el.innerHTML = CONCIERGE.map((c,i)=>`<div class="chip" style="opacity:1;" onclick="askConcierge(${i})">${escapeHtml(c.q)}</div>`).join("");
+}
+
+function conciergeAnswerCard(qText, aText, verified){
+  return `<div class="panel" style="margin-top:0;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <h2 style="margin:0;font-size:.95rem;">${escapeHtml(qText)}</h2>
+      <span class="tagLike" style="font-size:.62rem;font-weight:800;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em;${verified?'background:#E4EEE6;color:var(--green-800);':'background:#FBF0DE;color:#8A6A1F;'}">${verified?'Verified':'Community'}</span>
+    </div>
+    <p style="margin:0;color:var(--ink);opacity:.92;">${escapeHtml(aText)}</p>
+  </div>`;
+}
+
+function askConcierge(i){
+  const c = CONCIERGE[i];
+  document.getElementById('conciergeAnswerWrap').innerHTML = conciergeAnswerCard(c.q, c.a(), c.verified);
+}
+
+function conciergeSearch(){
+  const q = document.getElementById('conciergeInput').value.trim().toLowerCase();
+  const wrap = document.getElementById('conciergeAnswerWrap');
+  if(!q){ wrap.innerHTML = ""; return; }
+  // 1) direct FAQ keyword match
+  const hit = CONCIERGE.find(c=>c.q.toLowerCase().includes(q) || q.split(/\s+/).some(w=>w.length>3 && c.q.toLowerCase().includes(w)));
+  if(hit){ wrap.innerHTML = conciergeAnswerCard(hit.q, hit.a(), hit.verified); return; }
+  // 2) fall back to searching the directory
+  const matches = ALL_PLACES.filter(p=>(p.name+" "+p.desc+" "+p.town).toLowerCase().includes(q)).slice(0,4);
+  if(matches.length){
+    wrap.innerHTML = `<div class="listhead" style="margin:0 2px 8px;"><h3>From the directory</h3></div>` + matches.map(cardHTML).join("");
+  } else {
+    wrap.innerHTML = `<div class="empty">Couldn't find that. Try rephrasing, check the Directory tab, or add it yourself via Add.</div>`;
+  }
+}
+document.getElementById('conciergeInput').addEventListener('input', conciergeSearch);
+
+function shareApp(){
+  const text = "NaAbia — an offline local guide for all 17 LGAs of Abia State (villages, schools, hospitals, markets, NYSC & emergency contacts). Ask me for the file!";
+  if(navigator.share){
+    navigator.share({title:"NaAbia", text}).catch(()=>{});
+  } else {
+    navigator.clipboard?.writeText(text);
+    toast("Copied a share message — paste it into WhatsApp");
+  }
+}
+
+/* ================= Cultural life-strip carousel ================= */
+const VIGNETTES = ['vig-cyclist','vig-women','vig-trader'];
+let vigIndex = -1;
+function nextVignette(){
+  VIGNETTES.forEach(id=>document.getElementById(id).classList.remove('show'));
+  vigIndex = (vigIndex+1) % VIGNETTES.length;
+  const el = document.getElementById(VIGNETTES[vigIndex]);
+  // restart CSS animation cleanly
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  el.classList.add('show');
+}
+function startCarousel(){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  nextVignette();
+  setInterval(nextVignette, 7000);
+}
+
+/* ================= Igbo pronunciation helper ================= */
+function syllabify(word){
+  const vowels = /[aeiouAEIOUịỌỤọụ]/;
+  let out = [], cur = "";
+  for(let i=0;i<word.length;i++){
+    cur += word[i];
+    const isVowel = vowels.test(word[i]);
+    const nextConsonant = i+1<word.length && !vowels.test(word[i+1]) && /[a-zA-Z]/.test(word[i+1]);
+    const afterThatVowel = i+2<word.length && vowels.test(word[i+2]);
+    if(isVowel && nextConsonant && afterThatVowel){ out.push(cur); cur=""; }
+  }
+  if(cur) out.push(cur);
+  return out.join('·');
+}
+function syllableGuide(name){
+  return name.split(/([\s\-\/])/).map(part=>/[\s\-\/]/.test(part)?part:syllabify(part)).join('');
+}
+
+let cachedVoices = [];
+if('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = ()=>{ cachedVoices = speechSynthesis.getVoices(); };
+  cachedVoices = speechSynthesis.getVoices();
+}
+function speakName(name){
+  if(!('speechSynthesis' in window)){ toast("Speech playback isn't supported on this device"); return; }
+  const voices = cachedVoices.length ? cachedVoices : speechSynthesis.getVoices();
+  let voice = voices.find(v=>/ig[-_]?NG|Igbo/i.test(v.lang+' '+v.name))
+           || voices.find(v=>/en-NG/i.test(v.lang))
+           || voices.find(v=>/^en/i.test(v.lang));
+  const u = new SpeechSynthesisUtterance(name);
+  if(voice) u.voice = voice;
+  u.rate = 0.82;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+  toast(voice && /ig/i.test(voice.lang) ? "Playing Igbo voice" : "Playing best available voice — most phones don't have a true Igbo voice yet");
+}
+
+/* ================= Boot ================= */
+buildIcon();
+loadData();
+updateNetStatus();
+renderConciergeChips();
+startCarousel();
+applySeasonTheme();
+setTimeout(()=>{ document.getElementById('splash').classList.add('hide'); }, 1300);
+
+/* Handle home-screen shortcut quick actions (long-press app icon) */
+(function handleShortcut(){
+  const action = new URLSearchParams(location.search).get('action');
+  if(action === 'sos'){
+    setTimeout(()=>{ goTab('guide'); scrollToLost(); }, 1400);
+  } else if(action === 'search'){
+    setTimeout(()=>{ goTab('explore'); document.getElementById('searchbox')?.focus(); }, 1400);
+  }
+})();
+
+/* Service worker: only registers when served over http(s) with sw.js alongside
+   this file (e.g. once hosted or wrapped for mobile). Safely no-ops inside the
+   Claude preview or when opened as a bare local file. */
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
